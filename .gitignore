@@ -1,0 +1,18 @@
+# Build outputs — the committed tree is source only.
+*.o
+*.d
+*.elf
+*.img
+*.lst
+*.map
+
+# converttool-generated headers (network-loader web content).
+network-loader/index.h
+network-loader/style.h
+network-loader/favicon.h
+
+# circle-stdlib build tree + its LLVM checkout (large; fetched by `make deps`).
+circle-stdlib/build/
+circle-stdlib/install*/
+circle-stdlib/Config.mk
+circle-stdlib/libs/llvm-project/
