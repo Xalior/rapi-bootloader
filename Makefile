@@ -30,8 +30,7 @@ LLVM_TAG  = circle-stdlib-22.1.3-v2
 # MAKEINFO=true: newlib insists on building its manuals otherwise, which
 # fails on any system without texinfo — the manuals aren't the product.
 deps:
-	git submodule update --init circle-stdlib
-	cd circle-stdlib && git submodule update --init --recursive libs
+	git submodule update --init --recursive circle-stdlib
 	@[ -f circle-stdlib/libs/llvm-project/runtimes/CMakeLists.txt ] || \
 		git clone --depth 1 --branch $(LLVM_TAG) $(LLVM_REPO) circle-stdlib/libs/llvm-project
 	cd circle-stdlib && bash ./configure -r 4 -p aarch64-none-elf- \
