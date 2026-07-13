@@ -323,14 +323,20 @@ void CWebDAVServer::SendSimpleResponse (int nStatus, const char *pReason,
 		       "Connection: close\r\n"
 		       "\r\n", nStatus, pReason, pContentType, nBodyLength);
 
-	if (m_pSocket->Send ((const char *) Header, Header.GetLength (), MSG_DONTWAIT) < 0)
+	// Blocking sends (flag 0), not MSG_DONTWAIT: CSocket::Send yields to the
+	// scheduler only after a chunk is accepted, so a non-blocking send that
+	// hits a full TCP window returns before yielding — a large body then
+	// spins the caller with no yield, starving the net task that drains TCP
+	// (it wedged the whole loader on a 57MB GET). Blocking gives proper
+	// backpressure; the send timeout set in Worker() bounds a dead client.
+	if (m_pSocket->Send ((const char *) Header, Header.GetLength (), 0) < 0)
 	{
 		return;
 	}
 
 	if (nBodyLength > 0)
 	{
-		m_pSocket->Send (pBody, nBodyLength, MSG_DONTWAIT);
+		m_pSocket->Send (pBody, nBodyLength, 0);
 	}
 }
 
@@ -381,7 +387,7 @@ void CWebDAVServer::DoOptions (void)
 		       "Connection: close\r\n"
 		       "\r\n");
 
-	m_pSocket->Send ((const char *) Header, Header.GetLength (), MSG_DONTWAIT);
+	m_pSocket->Send ((const char *) Header, Header.GetLength (), 0);
 }
 
 void CWebDAVServer::DoPropfind (void)
@@ -481,7 +487,7 @@ void CWebDAVServer::DoGet (boolean bHeadOnly)
 		       "Connection: close\r\n"
 		       "\r\n", (unsigned long) Info.fsize);
 
-	if (   m_pSocket->Send ((const char *) Header, Header.GetLength (), MSG_DONTWAIT) >= 0
+	if (   m_pSocket->Send ((const char *) Header, Header.GetLength (), 0) >= 0
 	    && !bHeadOnly)
 	{
 		UINT nRead;
@@ -492,9 +498,13 @@ void CWebDAVServer::DoGet (boolean bHeadOnly)
 				break;
 			}
 
-			if (nRead > 0)
+			// Blocking send: backpressure against the TCP window so a
+			// large file streams at the link's pace instead of spinning
+			// this loop with no yield. A negative result means the client
+			// went away (or the send timed out) -- stop, don't read on.
+			if (nRead > 0 && m_pSocket->Send (m_pRecvBuf, nRead, 0) < 0)
 			{
-				m_pSocket->Send (m_pRecvBuf, nRead, MSG_DONTWAIT);
+				break;
 			}
 		}
 		while (nRead == RECV_BUF_SIZE);
@@ -700,6 +710,7 @@ void CWebDAVServer::Worker (void)
 	assert (m_pSocket != 0);
 
 	m_pSocket->SetOptionReceiveTimeout (WEBDAV_TIMEOUT_SECONDS * 1000000);
+	m_pSocket->SetOptionSendTimeout (WEBDAV_TIMEOUT_SECONDS * 1000000);
 
 	int nHeaderLen = ReceiveHeaders ();
 	if (nHeaderLen >= 0 && ParseRequest (nHeaderLen))
