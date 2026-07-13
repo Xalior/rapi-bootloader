@@ -40,7 +40,10 @@ Push with any TFTP client, e.g.
 
 ### HTTP — port 8080
 
-A small web UI over the same push, plus a `/reboot` endpoint.
+A small web UI: choose a `kernel*.img` to upload, optionally type an **ABI
+parameters** string (the argv text stamped into the image's 0x800 block —
+the same injection the TFTP `inject` path performs; leave it blank for a plain
+boot), and press *Boot now!*. Plus a `/reboot` endpoint.
 
 ### WebDAV — port 8081 (class 1)
 

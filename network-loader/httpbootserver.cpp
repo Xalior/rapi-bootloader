@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "httpbootserver.h"
+#include "defaultsblock.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
@@ -81,42 +82,86 @@ THTTPStatus CHTTPBootServer::GetContent (const char  *pPath,
 	{
 		const char *pMsg = 0;
 
+		// A submitted form has two parts: the kernel image ("kernelimg", a
+		// kernel*.img upload) and an optional ABI defaults-string
+		// ("defaults") — the argv text stamped into the image's 0x800 block,
+		// the same injection the TFTP "inject" path performs. Iterate every
+		// part and capture the image (staged in the high heap) and the
+		// string in whatever order the browser sent them.
 		const char *pPartHeader;
 		const u8 *pPartData;
 		unsigned nPartLength;
-		if (GetMultipartFormPart (&pPartHeader, &pPartData, &nPartLength))
+
+		u8 *pKernelImage = 0;
+		unsigned nKernelLength = 0;
+		char Defaults[DEFAULTS_BUFFER_BYTES];
+		Defaults[0] = '\0';
+		boolean bHaveForm = FALSE;
+
+		while (GetMultipartFormPart (&pPartHeader, &pPartData, &nPartLength))
 		{
+			bHaveForm = TRUE;
 			assert (pPartHeader != 0);
+
 			if (   strstr (pPartHeader, "name=\"kernelimg\"") != 0
 			    && strstr (pPartHeader, "filename=\"kernel") != 0
 			    && strstr (pPartHeader, ".img\"") != 0
 			    && nPartLength > 0)
 			{
 				// pi-mame: high heap — see tftpbootserver.cpp
-				u8 *pKernelImage = new (HEAP_HIGH) u8[nPartLength];
+				pKernelImage = new (HEAP_HIGH) u8[nPartLength];
 				if (pKernelImage != 0)
 				{
 					assert (pPartData != 0);
 					memcpy (pKernelImage, pPartData, nPartLength);
-
-					EnableChainBoot (pKernelImage, nPartLength);
-
-					pMsg = "Now booting...";
-				}
-				else
-				{
-					pMsg = "Out of memory";
+					nKernelLength = nPartLength;
 				}
 			}
-			else
+			else if (strstr (pPartHeader, "name=\"defaults\"") != 0)
 			{
-				pMsg = "Invalid request";
+				unsigned n = nPartLength < sizeof Defaults - 1
+					   ? nPartLength : (unsigned) (sizeof Defaults - 1);
+				if (n > 0)
+				{
+					assert (pPartData != 0);
+					memcpy (Defaults, pPartData, n);
+				}
+				Defaults[n] = '\0';
 			}
+		}
+
+		if (!bHaveForm)
+		{
+			pMsg = "Select the kernel image file to boot, optionally enter "
+			       "ABI parameters, and press the boot button!";
+		}
+		else if (pKernelImage == 0)
+		{
+			// no kernel*.img part, or the high-heap staging alloc failed
+			pMsg = "Invalid request, or out of memory staging the image";
 		}
 		else
 		{
-			pMsg = "Select the kernel image file to be loaded "
-			       "and press the boot button!";
+			if (Defaults[0] != '\0')
+			{
+				// Stamp the argv string into the 0x800 block. PatchDefaults
+				// verifies the PM8D magic and refuses to write into an image
+				// that has no block — such a kernel just boots unpatched.
+				TPatchResult Result = PatchDefaults (pKernelImage, nKernelLength, Defaults);
+				CLogger::Get ()->Write (FromHTTPBootServer,
+					Result == PatchOK ? LogNotice : LogWarning,
+					"ABI parameters: %s", PatchResultString (Result));
+
+				pMsg = Result == PatchOK
+				     ? "ABI parameters stamped -- now booting..."
+				     : "Image has no ABI defaults block -- booting unpatched...";
+			}
+			else
+			{
+				pMsg = "Now booting...";
+			}
+
+			EnableChainBoot (pKernelImage, nKernelLength);
 		}
 
 		assert (pMsg != 0);
