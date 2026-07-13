@@ -362,6 +362,28 @@ void CWebDAVServer::AppendPropfindEntry (CString *pXml, const char *pHref,
 		      "</D:propstat></D:response>");
 }
 
+void CWebDAVServer::DoOptions (void)
+{
+	// Class-1 capability advertisement. A WebDAV client (macOS Finder,
+	// davfs2, cadaver, …) sends OPTIONS before mounting and reads the DAV
+	// header to decide the server speaks WebDAV; without a 200 + "DAV:"
+	// here it never issues a PROPFIND. We advertise class 1 ("DAV: 1", not
+	// "1,2") because there is no LOCK/UNLOCK — clients that require class-2
+	// locking to mount read-write may fall back to read-only or decline.
+	// SendSimpleResponse cannot carry these extra headers, so send directly.
+	CString Header;
+	Header.Format ("HTTP/1.1 200 OK\r\n"
+		       "Server: " WEBDAV_SERVER_NAME "\r\n"
+		       "DAV: 1\r\n"
+		       "Allow: OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, PROPFIND\r\n"
+		       "MS-Author-Via: DAV\r\n"
+		       "Content-Length: 0\r\n"
+		       "Connection: close\r\n"
+		       "\r\n");
+
+	m_pSocket->Send ((const char *) Header, Header.GetLength (), MSG_DONTWAIT);
+}
+
 void CWebDAVServer::DoPropfind (void)
 {
 	CString SdPath;
@@ -682,7 +704,11 @@ void CWebDAVServer::Worker (void)
 	int nHeaderLen = ReceiveHeaders ();
 	if (nHeaderLen >= 0 && ParseRequest (nHeaderLen))
 	{
-		if (strcmp (m_Method, "GET") == 0)
+		if (strcmp (m_Method, "OPTIONS") == 0)
+		{
+			DoOptions ();
+		}
+		else if (strcmp (m_Method, "GET") == 0)
 		{
 			DoGet (FALSE);
 		}

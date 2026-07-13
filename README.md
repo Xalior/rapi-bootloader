@@ -9,11 +9,12 @@ image at a fixed offset and chain-boot it:
   serves TFTP, HTTP (port 8080) and WebDAV (port 8081), receives a kernel
   image over the wire into a high-heap staging buffer, optionally stamps an
   argv defaults-string into it, and chain-boots it. Reflash-free iteration:
-  push a new image, it runs in RAM.
+  push a new image, it runs in RAM. See
+  [`network-loader/README.md`](network-loader/README.md).
 - **menu-loader** — an on-card boot picker. It reads a `bootmenu.cfg` list
   from the SD card, presents it on screen, takes a keyboard selection,
   stamps the chosen defaults-string into a staged platform kernel image, and
-  chain-boots it.
+  chain-boots it. See [`menu-loader/README.md`](menu-loader/README.md).
 
 Both are **single-core** by design: Circle's `EnableChainBoot()` refuses a
 multicore build, so the boot world is configured without
@@ -42,8 +43,8 @@ appends it to its own argv.
 
 ```
 defaultsblock/   the shared 0x800 ABI (writer side): PatchDefaults()
-network-loader/  the TFTP/HTTP/WebDAV chain-loader
-menu-loader/     the on-card boot picker
+network-loader/  the TFTP/HTTP/WebDAV chain-loader  (see its README)
+menu-loader/     the on-card boot picker            (see its README)
 mk/ld/           TLS-adjacent linker script + link rule (see below)
 circle-stdlib/   submodule: the C/C++ runtime world both loaders link
 ```

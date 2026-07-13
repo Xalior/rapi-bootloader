@@ -12,9 +12,10 @@
 // kernel.cpp) because CHTTPBootServer already owns 8080 with a daemon whose
 // wire parser cannot be widened from outside Circle.
 //
-// Verbs: PROPFIND (Depth 0/1 directory listing), GET, HEAD, PUT, DELETE,
-// MKCOL. The whole SD card is the DAV root: request path "/x/y" maps to
-// FatFs path "SD:/x/y". One TCP connection serves exactly one request
+// Verbs: OPTIONS (class-1 capability advertisement), PROPFIND (Depth 0/1
+// directory listing), GET, HEAD, PUT, DELETE, MKCOL. No LOCK/UNLOCK: this is
+// WebDAV class 1. The whole SD card is the DAV root: request path "/x/y" maps
+// to FatFs path "SD:/x/y". One TCP connection serves exactly one request
 // (Connection: close), matching CHTTPDaemon's own model.
 //
 #ifndef _webdavserver_h
@@ -51,6 +52,7 @@ private:
 	void SendSimpleResponse (int nStatus, const char *pReason,
 				  const char *pContentType, const char *pBody);
 
+	void DoOptions (void);
 	void DoPropfind (void);
 	void DoGet (boolean bHeadOnly);
 	void DoPut (void);
