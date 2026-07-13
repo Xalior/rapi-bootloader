@@ -39,6 +39,75 @@ stamped over startup code) and enforces the string length against the
 block's own `Capacity` field. The consuming kernel tokenises `Text[]` and
 appends it to its own argv.
 
+The struct is `PACKED` and little-endian (matching AArch64), so its `sizeof`
+is `4 + 2 + 2 + Capacity`. An image must be at least `0x800 + sizeof` bytes
+long before any writer may dereference the block. AArch64 kernels load at
+`MEM_KERNEL_START` (`0x80000`), so the block's runtime address is `0x80800`;
+the image's first instruction is a `b` trampoline over the reserved boot
+furniture, which is what lets the block occupy fixed space near the head of
+the image without displacing Circle's startup contract.
+
+### Worked example
+
+Nothing beyond ordinary binary file I/O is needed, so a patcher can be written
+in any language. In a real image the block reads:
+
+```
+00000800: 504d 3844 0002 0c00 6336 3420 2d69 6563  PM8D....c64 -iec
+00000810: 3820 2222 0000 0000 0000 0000 0000 0000  8 ""............
+```
+
+`PM8D` at `+0x00`; `Capacity` `00 02` (LE `0x0200` = 512); `Length` `0c 00`
+(LE `0x000c` = 12, the length of `c64 -iec8 ""`); `Text` from `+0x08` holding
+that string, NUL-padded. Read it with nothing but `xxd`:
+
+```sh
+xxd -l 8   -s 0x800 kernel8-rpi4.img     # magic + capacity + length
+xxd -l 512 -s 0x808 kernel8-rpi4.img | head -1   # the text
+```
+
+Writing it — verify the magic, enforce the block's own `Capacity`, write
+`Text` NUL-terminated, update `Length` (excluding the NUL). That is the whole
+contract:
+
+```python
+#!/usr/bin/env python3
+import struct, sys
+
+OFFSET       = 0x800
+CAPACITY_OFF = OFFSET + 4
+LENGTH_OFF   = OFFSET + 6
+TEXT_OFF     = OFFSET + 8
+
+def patch(path, text):
+    data = bytearray(open(path, "rb").read())
+
+    if bytes(data[OFFSET:OFFSET + 4]) != b"PM8D":
+        sys.exit(f"{path}: no PM8D magic at 0x{OFFSET:x} — not an ABI image")
+
+    capacity = struct.unpack_from("<H", data, CAPACITY_OFF)[0]
+    encoded  = text.encode("ascii") + b"\x00"
+    if len(encoded) > capacity:
+        sys.exit(f"{path}: too long ({len(encoded)} bytes, capacity {capacity})")
+
+    data[TEXT_OFF:TEXT_OFF + len(encoded)] = encoded
+    struct.pack_into("<H", data, LENGTH_OFF, len(encoded) - 1)  # excludes the NUL
+
+    with open(path, "r+b") as f:
+        f.seek(OFFSET)
+        f.write(data[OFFSET:TEXT_OFF + capacity])
+
+if __name__ == "__main__":
+    patch(sys.argv[1], sys.argv[2])
+```
+
+```sh
+python3 patch.py kernel8-rpi4.img 'c64 -iec8 ""'
+```
+
+An empty string clears the block: the consuming kernel then appends nothing and
+boots its own default behaviour, so "unpatched" is not a special case.
+
 ## Layout
 
 ```
