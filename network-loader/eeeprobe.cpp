@@ -6,7 +6,15 @@
 // (external BCM54213PE on the Pi 4). Clause-22 MMD indirection through
 // registers 13/14 reaches the EEE registers in MMD 7 (autonegotiation).
 //
+// The GENET/BCM54213 MAC+PHY pairing is Pi 4 only — Circle's bcm2711.h
+// defines ARM_BCM54213_BASE under `#if RASPPI == 4` and nowhere else, so
+// this probe compiles to nothing on Pi 3/5 (see the matching `#if RASPPI
+// == 4` around its call site in kernel.cpp).
+//
 #include "eeeprobe.h"
+
+#if RASPPI == 4
+
 #include <circle/bcm2711.h>
 #include <circle/memio.h>
 #include <circle/timer.h>
@@ -137,3 +145,5 @@ int EEEProbeDisable (void)
 
 	return nReadback;
 }
+
+#endif // RASPPI == 4

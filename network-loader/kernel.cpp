@@ -106,6 +106,7 @@ boolean CKernel::Initialize (void)
 		bOK = m_Net.Initialize ();
 	}
 
+#if RASPPI == 4
 	if (bOK)
 	{
 		// The BCM54213 PHY powers up advertising Energy-Efficient
@@ -114,6 +115,8 @@ boolean CKernel::Initialize (void)
 		// eats locally-originated UDP frames on the boots where the
 		// partners actually use it. Clear the advertisement and
 		// renegotiate: EEE never established, egress always healthy.
+		// GENET/BCM54213 is Pi 4 only (see eeeprobe.cpp) — no-op on
+		// Pi 3/5, which don't have this MAC/PHY.
 		TEEEState State;
 		EEEProbeRead (&State);
 		int nAdvAfter = EEEProbeDisable ();
@@ -125,6 +128,7 @@ boolean CKernel::Initialize (void)
 		// come back before the boot servers matter.
 		m_Scheduler.Sleep (3);
 	}
+#endif
 
 	if (bOK)
 	{

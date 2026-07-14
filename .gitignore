@@ -11,8 +11,22 @@ network-loader/index.h
 network-loader/style.h
 network-loader/favicon.h
 
-# circle-stdlib build tree + its LLVM checkout (large; fetched by `make deps`).
-circle-stdlib/build/
-circle-stdlib/install*/
-circle-stdlib/Config.mk
-circle-stdlib/libs/llvm-project/
+# Each circle-stdlib-rpi{3,4,5} world's build tree + its LLVM checkout
+# (large; fetched/built by the top-level `deps` target or its per-board
+# equivalent — see README.md).
+circle-stdlib-rpi3/build/
+circle-stdlib-rpi3/install*/
+circle-stdlib-rpi3/Config.mk
+circle-stdlib-rpi3/libs/llvm-project/
+circle-stdlib-rpi4/build/
+circle-stdlib-rpi4/install*/
+circle-stdlib-rpi4/Config.mk
+circle-stdlib-rpi4/libs/llvm-project/
+circle-stdlib-rpi5/build/
+circle-stdlib-rpi5/install*/
+circle-stdlib-rpi5/Config.mk
+circle-stdlib-rpi5/libs/llvm-project/
+
+# Assembled SD-card contents (multi-board network-loader trial and any
+# future assemblies) — not source, not rebuilt by any Makefile target yet.
+dist/
