@@ -20,6 +20,26 @@ Both are **single-core** by design: Circle's `EnableChainBoot()` refuses a
 multicore build, so the boot world is configured without
 `ARM_ALLOW_MULTI_CORE`.
 
+## Where this comes from
+
+The repository is new; almost nothing in it is. Anyone who has worked
+bare-metal on a Raspberry Pi for long has built these parts, because the board
+gives you none of them: a way to get a fresh kernel onto the thing without
+pulling the SD card out for the hundredth time; a way to hand a payload its
+arguments when there is no command line, no environment and no filesystem
+convention to read them from; a way to choose, at boot, which of several
+payloads runs. Each time, they were rebuilt inside whichever project needed
+them — and stayed there, buried, when that project ended. The boot picker's
+design goes back to NextPi in 2018, and the ideas under it are older still.
+More than a decade of the same wheels, re-cut.
+
+rapi-bootloader is that accumulation, dug out, cleaned up, and put somewhere
+public. It gives the pieces one home and the argument-passing ABI a single
+owner, so that the next project can depend on them rather than write them
+again. Nothing here is specific to the payload that finally prompted the
+collection: any Circle kernel carrying the 0x800 block can be pushed, stamped
+and booted by these loaders.
+
 ## The 0x800 defaults-block ABI
 
 rapi-bootloader owns the small ABI both loaders write through
