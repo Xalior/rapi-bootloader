@@ -11,7 +11,31 @@
 
 #define WEBDAV_SERVER_NAME	"pi-mame-chainloader-webdav/1.0"
 #define WEBDAV_TIMEOUT_SECONDS	30	// bounds a stalled client, never waits forever
-#define MAX_CLIENTS		4
+#define MAX_CLIENTS		4	// concurrent workers; bounds memory (1MB per PUT)
+
+// The listen backlog is deliberately NOT MAX_CLIENTS: the two bound different
+// things, and only this one bounds exposure to a crash.
+//
+// CSocket::Accept returns immediately when a queued connection is already
+// established, and otherwise BLOCKS inside CTCPConnection::Accept (state
+// TCPStateListen -> m_Event.Wait). That wait is where Circle asserts: it does
+// not re-check the connection state after waking, so a queued connection reset
+// before it is accepted wakes the wait with its foreign IP never set, and the
+// unconditional CIPAddress::Set of it fails the valid-address assertion. A
+// client that opens many connections and abandons them (macOS Finder browsing
+// the share) hits that window; a shallow backlog widens it, because Accept then
+// has nothing established to return and waits on a fresh connection instead.
+//
+// At Circle's maximum the queue nearly always holds an established connection,
+// so the wait is rarely entered. This mitigates, it does not fix: the assertion
+// lives upstream.
+//
+// The cost is a listening CTCPConnection per slot. CSocket already carries the
+// handle array at full size, and an idle connection's queues allocate on
+// demand, so the slots are cheap and nothing else on the transport layer is
+// starved (its connection array grows). Worker concurrency and the 1MB-per-PUT
+// buffers stay bounded by MAX_CLIENTS above, which is what they were for.
+#define LISTEN_BACKLOG		SOCKET_MAX_LISTEN_BACKLOG
 
 static const char FromWebDAV[] = "webdav";
 
@@ -181,7 +205,7 @@ void CWebDAVServer::Listener (void)
 		return;
 	}
 
-	if (m_pSocket->Listen (MAX_CLIENTS) < 0)
+	if (m_pSocket->Listen (LISTEN_BACKLOG) < 0)
 	{
 		CLogger::Get ()->Write (FromWebDAV, LogError, "Cannot listen on socket");
 
