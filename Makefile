@@ -9,6 +9,8 @@
 #   make <loader>-<board>    one loader for one board, isolated in
 #                    <loader>/build/<board>/  (e.g. network-loader-rpi4)
 #   make dist        collect the built images into dist/<loader>/
+#   make card        assemble the multi-board network-loader SD tree into
+#                    dist/<CARD>/ (config.txt + RPi firmware + all 3 kernels)
 #   make clean       remove all per-board build trees and dist/
 #
 # CONCURRENCY: each (loader, board) compiles in its OWN tree
@@ -39,7 +41,7 @@ DIST    ?= dist
 LLVM_REPO = https://codeberg.org/larchcone/llvm-project.git
 LLVM_TAG  = circle-stdlib-22.1.3-v2
 
-.PHONY: deps loaders images dist clean $(LOADERS)
+.PHONY: deps loaders images dist card clean $(LOADERS)
 
 # One single-core world per board. They differ ONLY in RASPPI (configure -r),
 # derived from the board token (rpi4 -> 4). NONE define ARM_ALLOW_MULTI_CORE:
@@ -96,6 +98,24 @@ dist:
 	done
 	@echo "staged into $(DIST)/:"; \
 	 ls -1 $(DIST)/*/kernel*.img 2>/dev/null | sed 's/^/  /' || echo "  (nothing built yet)"
+
+# Assemble the multi-board network-loader SD tree into dist/<CARD>/ from
+# source: the tracked card/config.txt, standard Raspberry Pi Foundation
+# firmware + DTBs from Circle's boot/ dir (board-agnostic; the rpi4 world's
+# copy serves all), and all three network-loader kernel images. Reproducible
+# with `make card` -- flash the resulting tree onto a FAT32 SD.
+CARD    ?= multiboard-network-loader-sdcard
+BOOTSRC := circle-stdlib-rpi4/libs/circle/boot
+
+card: $(foreach B,$(BOARDS),network-loader-$(B))
+	@rm -rf $(DIST)/$(CARD)
+	@mkdir -p $(DIST)/$(CARD)/overlays
+	@cp card/config.txt $(DIST)/$(CARD)/
+	@cp $(BOOTSRC)/bootcode.bin $(BOOTSRC)/start*.elf $(BOOTSRC)/fixup*.dat \
+	    $(BOOTSRC)/armstub8-rpi4.bin $(BOOTSRC)/*.dtb $(DIST)/$(CARD)/
+	@cp $(BOOTSRC)/*.dtbo $(DIST)/$(CARD)/overlays/ 2>/dev/null || true
+	@for B in $(BOARDS); do cp network-loader/build/$$B/kernel*.img $(DIST)/$(CARD)/; done
+	@echo "assembled $(DIST)/$(CARD)/:"; ls -1 $(DIST)/$(CARD)
 
 # Remove ONLY what this build produces: each loader's per-board build tree and
 # its staged image dir under dist/. Never `rm -rf $(DIST)` wholesale -- dist/
