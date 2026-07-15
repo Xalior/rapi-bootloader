@@ -54,7 +54,8 @@ volatile bool g_bRebootRequested = false;
 CKernel::CKernel (void)
 :	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
 	m_Timer (&m_Interrupt),
-	m_Logger (m_Options.GetLogLevel (), &m_Timer)
+	m_Logger (m_Options.GetLogLevel (), &m_Timer),
+	m_USBHCI (&m_Interrupt, &m_Timer, TRUE)	// TRUE: plug-and-play
 #ifndef USE_DHCP
 	, m_Net (IPAddress, NetMask, DefaultGateway, DNSServer)
 #endif
@@ -93,12 +94,34 @@ boolean CKernel::Initialize (void)
 
 	if (bOK)
 	{
+		// Fired here, not in Run(): everything below can fail or assert
+		// before Run() is ever reached, and the build identity is the
+		// first thing worth knowing when reading back a crash.
+		m_Logger.Write (FromKernel, LogNotice,
+				"pi-mame chainloader -- compile time: " __DATE__ " " __TIME__);
+	}
+
+	if (bOK)
+	{
 		bOK = m_Interrupt.Initialize ();
 	}
 
 	if (bOK)
 	{
 		bOK = m_Timer.Initialize ();
+	}
+
+	if (bOK)
+	{
+		// Pi 4's Ethernet is native (GENET); Pi 3/5 have no on-die NIC —
+		// their only path to a network device is the USB-attached
+		// controller (Pi 3: internal LAN9514; Pi 5: also USB-based on
+		// some configurations), which CNetDevice::GetNetDevice() can
+		// only find once USB has enumerated it. Matches menu-loader's
+		// existing m_USBHCI.Initialize() (kernel.cpp) — that loader
+		// needed USB for its keyboard and always had this; network-
+		// loader was written Pi-4-only and never did.
+		bOK = m_USBHCI.Initialize ();
 	}
 
 	if (bOK)
@@ -147,8 +170,6 @@ boolean CKernel::Initialize (void)
 
 TShutdownMode CKernel::Run (void)
 {
-	m_Logger.Write (FromKernel, LogNotice, "pi-mame chainloader -- compile time: " __DATE__ " " __TIME__);
-
 	CString IPString;
 	m_Net.GetConfig ()->GetIPAddress ()->Format (&IPString);
 	m_Logger.Write (FromKernel, LogNotice, "Open \"http://%s:%u/\" in your web browser!",

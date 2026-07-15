@@ -81,6 +81,15 @@ boolean CKernel::Initialize (void)
 
 	if (bOK)
 	{
+		// Fired here, not in Run(): everything below can fail or assert
+		// before Run() is ever reached, and the build identity is the
+		// first thing worth knowing when reading back a crash.
+		m_Logger.Write (FromKernel, LogNotice,
+				"pi-mame boot picker — compile time: " __DATE__ " " __TIME__);
+	}
+
+	if (bOK)
+	{
 		bOK = m_Interrupt.Initialize ();
 	}
 
@@ -360,9 +369,6 @@ void CKernel::BootSelection (unsigned nIndex)
 
 TShutdownMode CKernel::Run (void)
 {
-	m_Logger.Write (FromKernel, LogNotice,
-			"pi-mame boot picker — compile time: " __DATE__ " " __TIME__);
-
 	m_Menu.Load (BOOTMENU_CFG_PATH);
 
 	if (m_Menu.GetCount () == 0)
