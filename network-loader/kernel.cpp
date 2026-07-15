@@ -53,6 +53,7 @@ volatile bool g_bRebootRequested = false;
 
 CKernel::CKernel (void)
 :	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
+	m_Tee (&m_Screen, &m_Serial),		// logger fans out to glass + UART
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
 	m_USBHCI (&m_Interrupt, &m_Timer, TRUE)	// TRUE: plug-and-play
@@ -83,13 +84,13 @@ boolean CKernel::Initialize (void)
 
 	if (bOK)
 	{
-		CDevice *pTarget = m_DeviceNameService.GetDevice (m_Options.GetLogDevice (), FALSE);
-		if (pTarget == 0)
-		{
-			pTarget = &m_Screen;
-		}
-
-		bOK = m_Logger.Initialize (pTarget);
+		// Tee every log line to both the screen and the serial UART. The
+		// serial half is what a remote host captures — without it a
+		// chainloader-phase crash is visible only on the glass (needing
+		// an hdmi-grab to read). Do NOT autodetect via GetLogDevice():
+		// with no logdev= in cmdline.txt it resolves to the screen alone,
+		// which is exactly what kept the chainloader off the serial line.
+		bOK = m_Logger.Initialize (&m_Tee);
 	}
 
 	if (bOK)
@@ -191,19 +192,46 @@ TShutdownMode CKernel::Run (void)
 		if (g_bRebootRequested)
 		{
 			m_Logger.Write (FromKernel, LogNotice, "Reboot requested");
+			QuiesceUSB ();		// clean xHCI teardown on reboot
 			m_Scheduler.Sleep (1);	// let the HTTP reply flush
 
 			return ShutdownReboot;
 		}
+
+		// Service USB every frame: keeps xHCI enumerated and settled (so
+		// the chain-boot teardown below is clean) and is the hook a future
+		// keyboard/menu on this loader will drive. Must run at TASK_LEVEL,
+		// which Run() is — matches the menu-loader's pump.
+		m_USBHCI.UpdatePlugAndPlay ();
 
 		m_Screen.Rotor (0, nCount);
 
 		m_Scheduler.Yield ();
 	}
 
+	// A boot server armed chain-boot from a task callback; the xHCI may
+	// have just enumerated the pushed transfer's activity. Settle it before
+	// Circle tears it down, or the teardown asserts (ptrlist m_pFirst == 0).
+	QuiesceUSB ();
+
 	m_Logger.Write (FromKernel, LogNotice, "Rebooting ...");
 
 	m_Scheduler.Sleep (1);
 
 	return ShutdownReboot;
+}
+
+void CKernel::QuiesceUSB (void)
+{
+	// Pump plug-and-play for ~2 s so any in-flight USB enumeration
+	// completes and the xHCI controller is quiescent before the reboot
+	// path frees its shared memory. This mirrors the menu-loader's
+	// pre-auto-boot settle; without it, tearing an unsettled xHCI down
+	// trips CPtrList::~CPtrList's assert (m_pFirst == 0) and panics.
+	unsigned nStart = m_Timer.GetTicks ();
+	while (m_Timer.GetTicks () - nStart < 2 * HZ)
+	{
+		m_USBHCI.UpdatePlugAndPlay ();
+		m_Scheduler.Yield ();
+	}
 }

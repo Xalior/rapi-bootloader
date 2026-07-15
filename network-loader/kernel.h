@@ -34,6 +34,7 @@
 #include <circle/types.h>
 #include <SDCard/emmc.h>
 #include <fatfs/ff.h>
+#include "teedevice.h"
 
 enum TShutdownMode
 {
@@ -51,13 +52,21 @@ public:
 	boolean Initialize (void);
 
 	TShutdownMode Run (void);
-	
+
+private:
+	// Quiesce the USB stack (pump plug-and-play until xHCI settles) before
+	// any path that reboots. Circle's chain-boot/reboot teardown asserts
+	// (ptrlist m_pFirst == 0) if it tears an unsettled xHCI controller
+	// down — the menu-loader settles the same way before auto-boot.
+	void QuiesceUSB (void);
+
 private:
 	// do not change this order
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
 	CScreenDevice		m_Screen;
 	CSerialDevice		m_Serial;
+	CTeeDevice		m_Tee;
 	CExceptionHandler	m_ExceptionHandler;
 	CInterruptSystem	m_Interrupt;
 	CTimer			m_Timer;
