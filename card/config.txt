@@ -1,0 +1,67 @@
+#
+# rapi-bootloader multi-board SD-card boot config.
+#
+# The card carries standard Raspberry Pi Foundation firmware plus all three
+# single-core kernel images (kernel8.img = RASPPI 3, kernel8-rpi4.img =
+# RASPPI 4, kernel_2712.img = RASPPI 5); each board's firmware selects its
+# matching image via the model sections below.
+#
+# Derived from Circle's boot/config64.txt (which we may not modify). The one
+# change: Compute Module routing. Stock config64.txt leaves [cm4] with only
+# otg_mode=1 and no kernel=, so a CM4 -- BCM2711, the same silicon as a Pi 4
+# and needing the RASPPI 4 image -- falls through to the default kernel8.img
+# (the RASPPI 3 build) and runs the wrong architecture. The Compute Modules
+# are pinned to their board's world here, alongside CM3/CM5 for clarity (a
+# CM3/CM5 already defaults to the right image; an unrecognised model filter
+# is simply ignored, so being explicit is harmless).
+#
+
+arm_64bit=1
+kernel_address=0x80000
+initial_turbo=0
+
+# Enable this for JTAG / SWD debugging!
+#enable_jtag_gpio=1
+
+# --- RASPPI 3 world (BCM2837): kernel8.img ---
+
+# Zero 2 W
+[pi02]
+kernel=kernel8.img
+
+# Pi 2 v1.2 (BCM2837, the only 64-bit-capable Pi 2)
+[pi2]
+kernel=kernel8.img
+
+[pi3]
+kernel=kernel8.img
+
+[pi3+]
+kernel=kernel8.img
+
+# Compute Module 3
+[cm3]
+kernel=kernel8.img
+
+# --- RASPPI 4 world (BCM2711): kernel8-rpi4.img ---
+
+[pi4]
+armstub=armstub8-rpi4.bin
+kernel=kernel8-rpi4.img
+max_framebuffers=2
+
+# Compute Module 4 -- same silicon as the Pi 4 (was otg_mode only upstream)
+[cm4]
+otg_mode=1
+armstub=armstub8-rpi4.bin
+kernel=kernel8-rpi4.img
+max_framebuffers=2
+
+# --- RASPPI 5 world (BCM2712): kernel_2712.img ---
+
+[pi5]
+kernel=kernel_2712.img
+
+# Compute Module 5
+[cm5]
+kernel=kernel_2712.img

@@ -97,6 +97,10 @@ dist:
 	@echo "staged into $(DIST)/:"; \
 	 ls -1 $(DIST)/*/kernel*.img 2>/dev/null | sed 's/^/  /' || echo "  (nothing built yet)"
 
+# Remove ONLY what this build produces: each loader's per-board build tree and
+# its staged image dir under dist/. Never `rm -rf $(DIST)` wholesale -- dist/
+# also holds hand-assembled card trees and other non-rebuilt artifacts that
+# are not ours to delete.
 clean:
-	@rm -rf $(foreach L,$(LOADERS),$(L)/build) $(DIST)
-	@echo "removed per-board build trees and $(DIST)/"
+	@rm -rf $(foreach L,$(LOADERS),$(L)/build $(DIST)/$(L))
+	@echo "removed per-board build trees and their $(DIST)/ staging dirs"
