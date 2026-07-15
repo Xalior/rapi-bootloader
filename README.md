@@ -135,7 +135,9 @@ defaultsblock/   the shared 0x800 ABI (writer side): PatchDefaults()
 network-loader/  the TFTP/HTTP/WebDAV chain-loader  (see its README)
 menu-loader/     the on-card boot picker            (see its README)
 mk/ld/           TLS-adjacent linker script + link rule (see below)
-circle-stdlib/   submodule: the C/C++ runtime world both loaders link
+circle-stdlib-rpi{3,4,5}/  submodules: one single-core C/C++ runtime world
+                 per board (RASPPI 3/4/5); a loader links the selected one
+dist/            collected per-board loader images (make dist)
 ```
 
 `mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
@@ -159,17 +161,27 @@ carry. The Circle tree itself is never modified.
 ```sh
 git clone --recursive <this-repo-url> rapi-bootloader
 cd rapi-bootloader
-make deps            # fetch + build the single-core circle-stdlib world
-make network-loader  # -> network-loader/kernel8-rpi4.img
-make menu-loader     # -> menu-loader/kernel8-rpi4.img
-# or: make loaders   # both
+make deps                 # fetch + build all three single-core worlds (RASPPI 3/4/5)
+make -j loaders           # every loader x every board, concurrently -> dist/
+# or one combo at a time:
+make network-loader-rpi4  # just the Pi 4 chain-loader, in its own build tree
 ```
 
-`make deps` initialises the `circle-stdlib` submodule (pinned to the
-project's tested commit), clones the immutable-tagged LLVM/libc++ checkout it
-builds libc++ from, then configures circle-stdlib **single-core**
-(`-r 4 -p aarch64-none-elf- --libcxx-repo --kernel-max-size 256`) and builds
-it. Each loader then links its image against that world.
+`make deps` initialises the three `circle-stdlib-rpi{3,4,5}` world submodules
+(each pinned to the project's tested commit), clones the immutable-tagged
+LLVM/libc++ checkout each builds libc++ from, then configures every world
+**single-core** (`-r <board> -p aarch64-none-elf- --libcxx-repo
+--kernel-max-size 256`) and builds it.
+
+`make -j loaders` builds each (loader, board) in its own out-of-tree directory
+`<loader>/build/<board>/` — isolated objects and a distinctly-named image
+(`kernel8.img` / `kernel8-rpi4.img` / `kernel_2712.img`) — so all combos build
+concurrently with zero collision, then collects the images into
+`dist/<loader>/`. Every supported board maps onto one of the three worlds
+(Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4, Pi 5 + CM5 → rpi5); the
+board→image routing lives in the card's `config.txt`. This per-board,
+concurrent-tree methodology is the one the pi-mame split reuses to dispatch
+concurrent CI build targets.
 
 ## Licence
 
