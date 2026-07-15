@@ -14,11 +14,27 @@
 # these flags.
 #
 
-ROOT = ..
+# SRCDIR: where this loader's sources live, relative to the build CWD (see
+# network-loader/Makefile for the full rationale). '.' for an in-place build;
+# the top-level concurrent build passes SRCDIR=../.. to compile each board in
+# its own build/<board>/ tree, so all boards build in parallel without
+# sharing objects. Config.mk carries absolute paths, so a subdir build resolves.
+SRCDIR ?= .
+ROOT   ?= $(SRCDIR)/..
 
-# Sets CIRCLEHOME (= circle-stdlib/libs/circle), CIRCLE_STDLIB_LIBS (the
+# Resolve sources when building out-of-tree (a no-op for an in-place build).
+vpath %.cpp $(SRCDIR)
+
+# One board = one single-core circle-stdlib world (RASPPI baked at configure
+# time): circle-stdlib-rpi3 -> kernel8.img, circle-stdlib-rpi4 ->
+# kernel8-rpi4.img, circle-stdlib-rpi5 -> kernel_2712.img. Default is the
+# proven Pi 4 world; the top-level Makefile overrides it per board:
+#   make -C menu-loader CIRCLE_STDLIB=circle-stdlib-rpi3
+CIRCLE_STDLIB ?= circle-stdlib-rpi4
+
+# Sets CIRCLEHOME (= $(CIRCLE_STDLIB)/libs/circle), CIRCLE_STDLIB_LIBS (the
 # newlib + libc++ + Circle library set) and CIRCLE_STDLIB_INCLUDES.
-include $(ROOT)/circle-stdlib/Config.mk
+include $(ROOT)/$(CIRCLE_STDLIB)/Config.mk
 
 # The 0x800 defaults-block writer (PatchDefaults) is the shared ABI, now
 # owned by rapi-bootloader/defaultsblock and compiled verbatim here — one
@@ -44,8 +60,10 @@ ifneq ($(findstring ARM_ALLOW_MULTI_CORE,$(DEFINE)),)
 $(error menu-loader is single-core by design, but ARM_ALLOW_MULTI_CORE is in DEFINE — reconfigure circle-stdlib WITHOUT -o ARM_ALLOW_MULTI_CORE)
 endif
 
-# newlib / libc++ headers resolve through the stdlib include path.
-INCLUDE := $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
+# newlib / libc++ headers resolve through the stdlib include path. -I. picks
+# up build-local generated headers; -I$(SRCDIR) the loader's own headers when
+# building out-of-tree (both are '.' for an in-place build).
+INCLUDE := -I. -I$(SRCDIR) $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
 
 # The shared 0x800 writer lives in rapi-bootloader/defaultsblock; compile it
 # into a local object here (Circle's %.o rule only matches same-directory

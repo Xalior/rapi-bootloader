@@ -23,8 +23,23 @@
 #   make -C network-loader CIRCLE_STDLIB=circle-stdlib-rpi3
 #
 
-ROOT = ..
+# SRCDIR: where this loader's sources live, relative to the build CWD. A
+# plain in-place build has them in the CWD (the default, '.'). The
+# top-level concurrent build runs each board in its own build/<board>/
+# tree and passes SRCDIR=../.. , so objects and the image land in that
+# per-board tree while the sources are found back here -- three boards
+# then build in parallel with zero shared-object collision. (Config.mk
+# carries ABSOLUTE toolchain/CIRCLEHOME paths, so a build from a subdir
+# resolves everything; only the ROOT-relative includes below need SRCDIR.)
+SRCDIR ?= .
+ROOT   ?= $(SRCDIR)/..
 CIRCLE_STDLIB ?= circle-stdlib-rpi4
+
+# Resolve sources when building out-of-tree (a no-op for an in-place build).
+vpath %.cpp  $(SRCDIR)
+vpath %.html $(SRCDIR)
+vpath %.css  $(SRCDIR)
+vpath %.ico  $(SRCDIR)
 
 # Sets CIRCLEHOME (= $(CIRCLE_STDLIB)/libs/circle), CIRCLE_STDLIB_LIBS (the
 # newlib + libc++ + Circle library set) and CIRCLE_STDLIB_INCLUDES.
@@ -57,8 +72,10 @@ ifneq ($(findstring ARM_ALLOW_MULTI_CORE,$(DEFINE)),)
 $(error network-loader is single-core by design, but ARM_ALLOW_MULTI_CORE is in DEFINE — reconfigure circle-stdlib WITHOUT -o ARM_ALLOW_MULTI_CORE)
 endif
 
-# newlib / libc++ headers resolve through the stdlib include path.
-INCLUDE := $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
+# newlib / libc++ headers resolve through the stdlib include path. -I. picks
+# up build-local generated headers (index.h &c.); -I$(SRCDIR) the loader's own
+# headers when building out-of-tree (both are '.' for an in-place build).
+INCLUDE := -I. -I$(SRCDIR) $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
 
 %.h: %.html
 	@echo "  GEN   $@"

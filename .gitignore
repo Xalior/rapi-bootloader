@@ -27,6 +27,13 @@ circle-stdlib-rpi5/install*/
 circle-stdlib-rpi5/Config.mk
 circle-stdlib-rpi5/libs/llvm-project/
 
-# Assembled SD-card contents (multi-board network-loader trial and any
-# future assemblies) — not source, not rebuilt by any Makefile target yet.
+# Per-board loader build trees. The concurrent out-of-tree builds
+# (`make <loader>-<board>`) put objects, converttool-generated headers and
+# the image in <loader>/build/<board>/ — all outputs, nothing source.
+network-loader/build/
+menu-loader/build/
+
+# Assembled SD-card contents: dist/ collects the per-board loader images
+# (`make dist`), plus the multi-board network-loader trial and any future
+# assemblies — not source.
 dist/
