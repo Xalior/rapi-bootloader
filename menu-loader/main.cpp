@@ -1,8 +1,8 @@
 //
 // main.cpp
 //
-// pi-mame boot picker entry point. Returning EXIT_REBOOT after arming
-// chain-boot hands control to the staged, patched platform kernel image
+// rapi-bootloader boot picker entry point. Returning EXIT_REBOOT after arming
+// chain-boot hands control to the staged, patched kernel image
 // (Circle's reboot path calls DoChainBoot when EnableChainBoot() was used).
 //
 #include "kernel.h"

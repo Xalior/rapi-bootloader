@@ -4,7 +4,7 @@
 // Parses bootmenu.cfg from the card's FAT root into an ordered list of
 // entries. One option per line: "label|defaults-string". The label is what
 // the user sees; the string after the first '|' is what gets patched into
-// the platform kernel's defaults block. Blank lines and lines beginning with
+// the staged kernel's defaults block. Blank lines and lines beginning with
 // '#' are ignored. Entries are kept in FILE ORDER (EASY mode: the top line is
 // the default the cursor first rests on).
 //

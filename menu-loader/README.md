@@ -1,25 +1,27 @@
 # menu-loader
 
-An on-card boot picker for bare-metal Raspberry Pi 4 payloads. Firmware boots
+An on-card boot picker for bare-metal Raspberry Pi payloads. Firmware boots
 it from the SD card; it reads a `bootmenu.cfg` list from the card, presents it
 on screen, takes a keyboard selection, stamps the chosen argv
 [defaults-string](../README.md#the-0x800-defaults-block-abi) into a staged
-platform kernel image, and chain-boots it.
+kernel image, and chain-boots it.
 
 Part of [rapi-bootloader](../README.md). Build with `make menu-loader` from the
-repo root (after `make deps`); the image is `menu-loader/kernel8-rpi4.img`.
-Single-core by design — Circle's `EnableChainBoot()` refuses a multicore build.
+repo root (after `make deps`); it builds one image per board into
+`menu-loader/build/<board>/` (Circle's own names — `kernel8.img` / `kernel8-rpi4.img`
+/ `kernel_2712.img` for RASPPI 3 / 4 / 5). Single-core by design — Circle's
+`EnableChainBoot()` refuses a multicore build.
 
 ## On-card files
 
 Both paths are on the SD card the firmware boots this loader from:
 
 - `bootmenu.cfg` — the menu (format below).
-- `pi-mame-core-<board>.img` — the single platform kernel image every entry
-  boots (`<board>` is the target board tag, currently `rpi4`, so
-  `pi-mame-core-rpi4.img`; it lets one card carry a payload per board). Each
-  menu entry does not carry its own image: they all stamp their chosen
-  defaults-string into this one staged image.
+- `kernel-<board>.img` — the single staged kernel image every entry boots
+  (`<board>` is the board tag derived at compile time from RASPPI: `rpi3` /
+  `rpi4` / `rpi5`, so e.g. `kernel-rpi4.img`; it lets one card carry a payload
+  per board). Each menu entry does not carry its own image: they all stamp
+  their chosen defaults-string into this one staged image.
 
 ## bootmenu.cfg
 
@@ -27,9 +29,9 @@ One entry per line, `Label | defaults-string`:
 
 ```
 # lines starting with '#' are comments; blank lines are skipped
-Commodore 64          | c64
-Commodore 64 (+ IEC)  | c64 -iec8 ""
-VIC-20                | vic20
+First entry           | string-one
+Second entry (opts)   | string-two --flag ""
+Third entry           | string-three
 ```
 
 - Split on the **first** `|`; a line without one is ignored (logged).
@@ -41,7 +43,7 @@ VIC-20                | vic20
   anything beyond is truncated or ignored (logged).
 
 A single-entry `bootmenu.cfg` boots that entry — the picker is then just a
-fixed, unattended chain-boot of one baked machine.
+fixed, unattended chain-boot of one baked entry.
 
 ## Keys
 

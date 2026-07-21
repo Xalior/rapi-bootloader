@@ -1,7 +1,7 @@
 //
 // kernel.cpp
 //
-// pi-mame boot picker. See kernel.h.
+// rapi-bootloader boot picker. See kernel.h.
 //
 #include "kernel.h"
 #include "defaultsblock.h"
@@ -69,8 +69,8 @@ boolean CKernel::Initialize (void)
 
 	if (bOK)
 	{
-		// Logger goes straight to the serial UART, exactly as the MAME
-		// payload does it (kernel.cpp: m_Logger.Initialize (&m_Serial)):
+		// Logger goes straight to the serial UART, exactly as the payload
+		// it chain-boots does it (m_Logger.Initialize (&m_Serial)):
 		// a serial console captures every diagnostic on serial, and the
 		// HDMI screen stays exclusively the menu's — logger lines never
 		// corrupt the drawn list. Do NOT autodetect via GetLogDevice():
@@ -85,7 +85,7 @@ boolean CKernel::Initialize (void)
 		// before Run() is ever reached, and the build identity is the
 		// first thing worth knowing when reading back a crash.
 		m_Logger.Write (FromKernel, LogNotice,
-				"pi-mame boot picker — compile time: " __DATE__ " " __TIME__);
+				"rapi-bootloader boot picker — compile time: " __DATE__ " " __TIME__);
 	}
 
 	if (bOK)
@@ -160,9 +160,8 @@ void CKernel::DrawMenu (void)
 	const unsigned nPage  = VisibleRows ();
 
 	// Scroll the window the least amount that keeps the cursor visible: the
-	// list feels anchored, only its edges move. A long menu (the Commodore
-	// card is 29 machines) shows one screen-page at a time instead of spilling
-	// off the bottom.
+	// list feels anchored, only its edges move. A long menu shows one
+	// screen-page at a time instead of spilling off the bottom.
 	if (m_nCursor < m_nTopVisible)
 	{
 		m_nTopVisible = m_nCursor;
@@ -190,8 +189,8 @@ void CKernel::DrawMenu (void)
 
 	// Home the cursor and clear to end of display, then redraw.
 	WriteString ("\x1b[H\x1b[J");
-	WriteString ("pi-mame boot picker\n");
-	WriteString ("select a machine, then press Enter\n");
+	WriteString ("rapi-bootloader boot picker\n");
+	WriteString ("select an entry, then press Enter\n");
 	WriteString ("(up/down move, PgUp/PgDn page, 1-9 jump)\n\n");
 
 	for (unsigned i = m_nTopVisible; i < nEnd; i++)
@@ -244,8 +243,8 @@ void CKernel::BootSelection (unsigned nIndex)
 			"BootSelection: index %u, label '%s', string '%s'",
 			nIndex, pLabel, pString);
 
-	// Stage the single platform kernel image in the high heap (>1 GB) so a
-	// large image can never overlap its own copy destination at 0x80000.
+	// Stage the single kernel image in the high heap (>1 GB) so a large
+	// image can never overlap its own copy destination at 0x80000.
 	if (m_pImageBuffer == 0)
 	{
 		m_Logger.Write (FromKernel, LogNotice,
@@ -260,7 +259,7 @@ void CKernel::BootSelection (unsigned nIndex)
 					"Staging alloc FAILED (HEAP_HIGH returned null) "
 					"for %llu bytes",
 					(unsigned long long) KERNEL_MAX_SIZE);
-			Fatal ("out of memory staging the platform image");
+			Fatal ("out of memory staging the kernel image");
 		}
 
 		m_Logger.Write (FromKernel, LogNotice,
@@ -297,7 +296,7 @@ void CKernel::BootSelection (unsigned nIndex)
 				(unsigned long long) nSize,
 				(unsigned long long) KERNEL_MAX_SIZE);
 		f_close (&File);
-		Fatal ("platform image size out of range");
+		Fatal ("kernel image size out of range");
 	}
 
 	// Read the whole image (FatFs reads are capped at UINT per call).
@@ -335,7 +334,7 @@ void CKernel::BootSelection (unsigned nIndex)
 				"Read incomplete: %llu of %llu bytes",
 				(unsigned long long) nOffset,
 				(unsigned long long) nSize);
-		Fatal ("read error on the platform image");
+		Fatal ("read error on the kernel image");
 	}
 	m_Logger.Write (FromKernel, LogNotice,
 			"Read OK: %llu bytes staged", (unsigned long long) nOffset);
@@ -376,7 +375,7 @@ TShutdownMode CKernel::Run (void)
 		// EASY mode: with no entries there is nothing a human can pick, so
 		// nothing boots. Say so and idle — never auto-boot anything.
 		WriteString ("\x1b[H\x1b[J");
-		WriteString ("pi-mame boot picker\n\n");
+		WriteString ("rapi-bootloader boot picker\n\n");
 		WriteString ("no usable entries in " BOOTMENU_CFG_PATH "\n");
 		WriteString ("(one 'label|defaults-string' per line)\n");
 		m_Logger.Write (FromKernel, LogError,

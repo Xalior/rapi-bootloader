@@ -1,10 +1,10 @@
 //
 // kernel.h
 //
-// pi-mame boot picker — the platform card's front door. A dead-simple
+// rapi-bootloader boot picker — the card's front door. A dead-simple
 // boot-world (single-core Circle) app: it prints the text list from
 // bootmenu.cfg, takes a keyboard pick, patches the chosen defaults-string
-// into a staged platform kernel image at offset 0x800, and chain-boots it.
+// into a staged kernel image at offset 0x800, and chain-boots it.
 //
 // EASY mode: entries in file order, the top line is where the cursor first
 // rests, no timeout, nothing boots until a human picks.
@@ -29,16 +29,29 @@
 #include <fatfs/ff.h>
 #include "bootmenu.h"
 
-// The card's config and the MAME core image. One core binary per card; the
-// machine name lives in the pick. The core is named per board —
-// pi-mame-core-<SYSTEMBIT>.img — so one card can carry a payload per board
-// (the PoC3 multi-board matrix), mirroring the firmware's kernel8*.img
-// convention. The picker itself ships alongside it as
-// pi-mame-boot-<SYSTEMBIT>.img. PoC2 is Pi 4 only; PoC3 resolves SYSTEMBIT at
-// runtime (Circle CMachineInfo::GetMachineModel) to add rpi3 / rpi5.
+// The card's config and the staged kernel image this picker chain-boots. One
+// payload binary per card; the menu pick supplies the defaults-string stamped
+// into it. The payload is named per board — kernel-<SYSTEMBIT>.img — so one
+// card can carry a payload per board, mirroring the firmware's own kernel8*.img
+// naming convention. The picker knows nothing about what the payload is; it
+// only loads a file by this name and chain-boots it.
+//
+// SYSTEMBIT resolves at COMPILE time from RASPPI (baked into this board's
+// circle-stdlib world at configure), so each board's picker — itself a
+// separate per-board image (kernel8.img / kernel8-rpi4.img / kernel_2712.img) —
+// chain-boots ITS OWN payload. RASPPI is a -D define (circle-stdlib Config.mk);
+// network-loader branches on it the same way.
+#if RASPPI == 3
+#define SYSTEMBIT		"rpi3"
+#elif RASPPI == 4
 #define SYSTEMBIT		"rpi4"
+#elif RASPPI == 5
+#define SYSTEMBIT		"rpi5"
+#else
+#error "menu-loader: unsupported RASPPI — SYSTEMBIT undefined (expected 3, 4 or 5)"
+#endif
 #define BOOTMENU_CFG_PATH	"SD:/bootmenu.cfg"
-#define PLATFORM_KERNEL_PATH	"SD:/pi-mame-core-" SYSTEMBIT ".img"
+#define PLATFORM_KERNEL_PATH	"SD:/kernel-" SYSTEMBIT ".img"
 
 enum TShutdownMode
 {
@@ -76,7 +89,7 @@ private:
 
 	// A kernel we cannot boot is fatal: show the reason on the glass (which
 	// the menu redraw can never wipe) and hang. Every menu entry boots the
-	// same platform image, so a malformed one fails identically each time —
+	// same staged image, so a malformed one fails identically each time —
 	// there is nothing to fall back to.
 	void Fatal (const char *pMessage) __attribute__ ((noreturn));
 

@@ -77,7 +77,7 @@ defaultsblock.d: $(DEFAULTSDIR)/defaultsblock.cpp
 
 -include $(DEPS)
 
-# pi-mame link rule: TLS-adjacent linker script (binutils 2.44+ refuses a
+# Boot-world link rule: TLS-adjacent linker script (binutils 2.44+ refuses a
 # PT_TLS segment built from non-adjacent .tdata/.tbss, which libc++/libunwind
 # carry). Circle's tree stays pristine.
 include $(ROOT)/mk/ld/circle-app.mk
