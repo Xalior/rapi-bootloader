@@ -37,3 +37,4 @@ menu-loader/build/
 # (`make dist`), plus the multi-board network-loader trial and any future
 # assemblies — not source.
 dist/
+.DS_Store
