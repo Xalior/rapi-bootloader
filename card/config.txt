@@ -61,7 +61,17 @@ max_framebuffers=2
 
 [pi5]
 kernel=kernel_2712.img
+# The Pi 5 firmware ignores mailbox framebuffer requests (mode, depth and
+# virtual size are echoed back but not honored): every kernel inherits the
+# one surface the firmware creates at ITS boot, in the native EDID mode and
+# 16bpp by default. This is the single knob the firmware still respects --
+# make that surface 32bpp so payloads rendering 32bpp pixels (the SDL shim)
+# land format-correct. Pi 3/4 honor the mailbox and are unaffected.
+framebuffer_depth=32
+framebuffer_ignore_alpha=1
 
 # Compute Module 5
 [cm5]
 kernel=kernel_2712.img
+framebuffer_depth=32
+framebuffer_ignore_alpha=1
