@@ -218,6 +218,17 @@ TShutdownMode CKernel::Run (void)
 
 	m_Scheduler.Sleep (1);
 
+#if RASPPI >= 5
+	// Tell the Pi 5 chain-boot interposition (rapi_chainboot.cpp) that
+	// main() is now returning: from here on IsChainBootEnabled()'s caller
+	// is sysinit(), running after the full ~CKernel device teardown, and
+	// it performs the hand-off itself.
+	{
+		extern volatile bool g_bLoaderMainReturned;
+		g_bLoaderMainReturned = true;
+	}
+#endif
+
 	return ShutdownReboot;
 }
 

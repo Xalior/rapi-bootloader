@@ -53,7 +53,7 @@ DEFAULTSDIR = $(ROOT)/defaultsblock
 STAGEDIR = $(ROOT)/stagealloc
 EXTRAINCLUDE = -I$(DEFAULTSDIR) -I$(STAGEDIR)
 
-OBJS = main.o kernel.o httpbootserver.o tftpbootserver.o webdavserver.o eeeprobe.o defaultsblock.o stagealloc.o
+OBJS = main.o kernel.o httpbootserver.o tftpbootserver.o webdavserver.o eeeprobe.o defaultsblock.o stagealloc.o rapi_chainboot.o
 
 # On circle-stdlib the loader links the full newlib + libc++ + Circle
 # library set (CIRCLE_STDLIB_LIBS from Config.mk). The Circle archives it
