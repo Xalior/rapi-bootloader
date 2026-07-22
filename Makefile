@@ -32,6 +32,19 @@ BOARDS  ?= rpi3 rpi4 rpi5
 LOADERS ?= network-loader menu-loader
 DIST    ?= dist
 
+# Toolchain env (the Makefile is the entrypoint — no manual PATH / source):
+# GNU getopt for circle-stdlib's configure, and ccache if installed.
+GETOPT_BIN := $(firstword $(wildcard /opt/homebrew/opt/gnu-getopt/bin /usr/local/opt/gnu-getopt/bin))
+ifneq ($(GETOPT_BIN),)
+export PATH := $(GETOPT_BIN):$(PATH)
+endif
+CCACHE_SRC := $(shell command -v ccache 2>/dev/null)
+ifneq ($(CCACHE_SRC),)
+CCACHE_MASQ := $(CURDIR)/build/ccache-bin
+$(shell mkdir -p $(CCACHE_MASQ) && for t in gcc g++ c++; do ln -sf "$(CCACHE_SRC)" "$(CCACHE_MASQ)/aarch64-none-elf-$$t"; done)
+export PATH := $(CCACHE_MASQ):$(PATH)
+endif
+
 # LLVM/libc++ comes from a GIT CHECKOUT at a fixed tag via --libcxx-repo, NOT
 # circle-stdlib's default --libcxx tarball fetch. Codeberg regenerates its
 # auto-archive tarballs, so their bytes (and SHA256) drift from the hash
