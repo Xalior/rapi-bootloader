@@ -31,6 +31,10 @@ CKernel *CKernel::s_pThis = 0;
 
 CKernel::CKernel (void)
 :	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
+	// Serial device 0 is the GPIO14/15 header UART on every board. Named
+	// explicitly because Circle's RASPPI >= 5 default (SERIAL_DEVICE_DEFAULT
+	// = 10) is the Pi 5's dedicated debug connector, not the header.
+	m_Serial (0, FALSE, 0),
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
 	m_USBHCI (&m_Interrupt, &m_Timer, TRUE),	// TRUE: plug-and-play

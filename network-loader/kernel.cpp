@@ -53,6 +53,10 @@ volatile bool g_bRebootRequested = false;
 
 CKernel::CKernel (void)
 :	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
+	// Serial device 0 is the GPIO14/15 header UART on every board. Named
+	// explicitly because Circle's RASPPI >= 5 default (SERIAL_DEVICE_DEFAULT
+	// = 10) is the Pi 5's dedicated debug connector, not the header.
+	m_Serial (0, FALSE, 0),
 	m_Tee (&m_Screen, &m_Serial),		// logger fans out to glass + UART
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
@@ -101,6 +105,7 @@ boolean CKernel::Initialize (void)
 		m_Logger.Write (FromKernel, LogNotice,
 				"pi-mame chainloader -- compile time: " __DATE__ " " __TIME__);
 	}
+
 
 	if (bOK)
 	{
