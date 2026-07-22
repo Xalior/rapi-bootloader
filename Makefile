@@ -54,6 +54,13 @@ LLVM_TAG  = circle-stdlib-22.1.3-v2
 # derived from the board token (rpi4 -> 4). NONE define ARM_ALLOW_MULTI_CORE:
 # Circle's EnableChainBoot() (both loaders use it) refuses a multicore build.
 #
+# The rpi5 world alone carries -o DEPTH=32: the Pi 5 has ONE firmware
+# surface for every kernel and the card makes it 32bpp (card/config.txt
+# framebuffer_depth=32, the knob that lets the display controller do the
+# format work in hardware) — so that board's console must render 32bpp
+# too. CScreenDevice's depth is compiled into libcircle, hence a world
+# option. Pi 3/4 firmware honors per-kernel framebuffer requests; their
+# worlds keep Circle's defaults and are not rebuilt for this.
 # `bash ./configure` (not ./configure): the shebang would pin macOS's bash 3.2;
 # PATH resolution finds a modern bash when installed. MAKEINFO=true: newlib
 # insists on building its manuals otherwise, which fails without texinfo -- the
@@ -65,8 +72,9 @@ deps:
 	  git submodule update --init --recursive $$w; \
 	  [ -f $$w/libs/llvm-project/runtimes/CMakeLists.txt ] || \
 	    git clone --depth 1 --branch $(LLVM_TAG) $(LLVM_REPO) $$w/libs/llvm-project; \
+	  o=""; [ $$b = rpi5 ] && o="-o DEPTH=32"; \
 	  ( cd $$w && bash ./configure -r $$r -p aarch64-none-elf- \
-	      --libcxx-repo --kernel-max-size 256 && $(MAKE) MAKEINFO=true ); \
+	      --libcxx-repo --kernel-max-size 256 $$o && $(MAKE) MAKEINFO=true ); \
 	done
 
 # Per-(loader, board) build. Runs the loader's own Makefile from an isolated
