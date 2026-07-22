@@ -104,6 +104,17 @@ boolean CKernel::Initialize (void)
 		// first thing worth knowing when reading back a crash.
 		m_Logger.Write (FromKernel, LogNotice,
 				"pi-mame chainloader -- compile time: " __DATE__ " " __TIME__);
+
+		// The requested geometry (cmdline.txt width=/height=) vs what the
+		// firmware actually allocated: on boards whose firmware ignores
+		// the request (observed on Pi 5, which hands out the EDID-native
+		// mode) these differ, and the pitch is the truth of the scanout.
+		m_Logger.Write (FromKernel, LogNotice,
+				"screen: requested %ux%u, buffer %ux%u pitch %u bytes",
+				m_Options.GetWidth (), m_Options.GetHeight (),
+				m_Screen.GetFrameBuffer ()->GetWidth (),
+				m_Screen.GetFrameBuffer ()->GetHeight (),
+				m_Screen.GetFrameBuffer ()->GetPitch ());
 	}
 
 
