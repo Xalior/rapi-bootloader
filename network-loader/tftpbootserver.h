@@ -36,6 +36,12 @@ public:
 	int FileRead (void *pBuffer, unsigned nCount);
 	int FileWrite (const void *pBuffer, unsigned nCount);
 
+	// The transfer verdict. FileClose() cannot tell a completed push from
+	// a timed-out or aborted one — the daemon calls it in both cases — so
+	// a received kernel is only armed for chain-boot from here, on
+	// StatusWriteCompleted. A truncated payload must never boot.
+	void UpdateStatus (TStatus Status, const char *pFileName);
+
 private:
 	enum TMode
 	{
@@ -52,6 +58,11 @@ private:
 	u8 *m_pKernelBuffer;
 	unsigned m_nCurrentOffset;
 	FIL m_File;
+
+	// Set by FileClose() when a kernel push closes with bytes in the
+	// buffer; consumed by UpdateStatus() — armed on completion, discarded
+	// on abort/timeout.
+	boolean m_bKernelClosed;
 
 	// The pending defaults-string injection (dev tooling): an "inject" push
 	// fills this and arms m_bInjectPending; the very next kernel push patches

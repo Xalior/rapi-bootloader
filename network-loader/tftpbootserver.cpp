@@ -37,6 +37,7 @@ CTFTPBootServer::CTFTPBootServer (CNetSubSystem *pNetSubSystem, size_t nMaxKerne
 	m_nMaxKernelSize (nMaxKernelSize),
 	m_Mode (ModeNone),
 	m_pKernelBuffer (0),
+	m_bKernelClosed (FALSE),
 	m_bInjectPending (FALSE),
 	m_nInjectFill (0),
 	m_pWriteBuf (0),
@@ -199,30 +200,12 @@ boolean CTFTPBootServer::FileClose (void)
 	case ModeKernel:
 		CLogger::Get ()->Write (FromBootServer, LogDebug,
 					"%u bytes received", m_nCurrentOffset);
-		if (m_nCurrentOffset > 0)
-		{
-			// Dev tooling: if an "inject" push armed a defaults-string,
-			// stamp it into this image's 0x800 block before booting.
-			// The write is magic-verified and length-enforced by the
-			// shared PatchDefaults; a missing/short block is refused,
-			// never stamped over startup code. One-shot: disarm after
-			// the attempt so it never leaks to a later un-injected boot.
-			if (m_bInjectPending)
-			{
-				TPatchResult Result = PatchDefaults (
-					m_pKernelBuffer, m_nCurrentOffset, m_InjectText);
-				CLogger::Get ()->Write (FromBootServer,
-					Result == PatchOK ? LogNotice : LogWarning,
-					"defaults injection: %s",
-					PatchResultString (Result));
-
-				m_bInjectPending = FALSE;
-				m_nInjectFill = 0;
-				m_InjectText[0] = '\0';
-			}
-
-			EnableChainBoot (m_pKernelBuffer, m_nCurrentOffset);
-		}
+		// Whether these bytes are a complete payload is not knowable
+		// here: the daemon calls FileClose() for completed, timed-out
+		// and aborted transfers alike. Hand the verdict to
+		// UpdateStatus(), which the daemon calls next with the actual
+		// transfer status — only a completed push may chain-boot.
+		m_bKernelClosed = m_nCurrentOffset > 0;
 		break;
 
 	case ModeInject:
@@ -269,6 +252,57 @@ boolean CTFTPBootServer::FileClose (void)
 	m_Mode = ModeNone;
 
 	return TRUE;
+}
+
+void CTFTPBootServer::UpdateStatus (TStatus Status, const char *pFileName)
+{
+	if (!m_bKernelClosed)
+	{
+		return;
+	}
+
+	switch (Status)
+	{
+	case StatusWriteCompleted:
+		m_bKernelClosed = FALSE;
+
+		// Dev tooling: if an "inject" push armed a defaults-string,
+		// stamp it into this image's 0x800 block before booting.
+		// The write is magic-verified and length-enforced by the
+		// shared PatchDefaults; a missing/short block is refused,
+		// never stamped over startup code. One-shot: disarm after
+		// the attempt so it never leaks to a later un-injected boot.
+		if (m_bInjectPending)
+		{
+			TPatchResult Result = PatchDefaults (
+				m_pKernelBuffer, m_nCurrentOffset, m_InjectText);
+			CLogger::Get ()->Write (FromBootServer,
+				Result == PatchOK ? LogNotice : LogWarning,
+				"defaults injection: %s",
+				PatchResultString (Result));
+
+			m_bInjectPending = FALSE;
+			m_nInjectFill = 0;
+			m_InjectText[0] = '\0';
+		}
+
+		EnableChainBoot (m_pKernelBuffer, m_nCurrentOffset);
+		break;
+
+	case StatusWriteAborted:
+		// A timed-out or aborted push: a truncated payload must never
+		// boot. Discard it; a pending injection stays armed for the
+		// caller's retry.
+		m_bKernelClosed = FALSE;
+		CLogger::Get ()->Write (FromBootServer, LogWarning,
+					"truncated push discarded (%u bytes)",
+					m_nCurrentOffset);
+		m_nCurrentOffset = 0;
+		break;
+
+	default:
+		break;
+	}
 }
 
 int CTFTPBootServer::FileRead (void *pBuffer, unsigned nCount)
