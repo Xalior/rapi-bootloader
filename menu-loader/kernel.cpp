@@ -5,6 +5,7 @@
 //
 #include "kernel.h"
 #include "defaultsblock.h"
+#include "stagealloc.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/string.h>
@@ -243,16 +244,16 @@ void CKernel::BootSelection (unsigned nIndex)
 			"BootSelection: index %u, label '%s', string '%s'",
 			nIndex, pLabel, pString);
 
-	// Stage the single kernel image in the high heap (>1 GB) so a large
-	// image can never overlap its own copy destination at 0x80000.
+	// Stage the single kernel image clear of its 0x80000 copy destination
+	// (StageAlloc picks high heap on Pi 4/5, low heap on a 1 GB Pi 3).
 	if (m_pImageBuffer == 0)
 	{
 		m_Logger.Write (FromKernel, LogNotice,
-				"Staging alloc: new (HEAP_HIGH) u8[KERNEL_MAX_SIZE], "
+				"Staging alloc: StageAlloc (KERNEL_MAX_SIZE), "
 				"KERNEL_MAX_SIZE = %llu bytes",
 				(unsigned long long) KERNEL_MAX_SIZE);
 
-		m_pImageBuffer = new (HEAP_HIGH) u8[KERNEL_MAX_SIZE];
+		m_pImageBuffer = (u8 *) StageAlloc (KERNEL_MAX_SIZE);
 		if (m_pImageBuffer == 0)
 		{
 			m_Logger.Write (FromKernel, LogError,

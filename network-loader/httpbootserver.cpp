@@ -19,6 +19,7 @@
 //
 #include "httpbootserver.h"
 #include "defaultsblock.h"
+#include "stagealloc.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
@@ -108,8 +109,7 @@ THTTPStatus CHTTPBootServer::GetContent (const char  *pPath,
 			    && strstr (pPartHeader, ".img\"") != 0
 			    && nPartLength > 0)
 			{
-				// pi-mame: high heap — see tftpbootserver.cpp
-				pKernelImage = new (HEAP_HIGH) u8[nPartLength];
+				pKernelImage = (u8 *) StageAlloc (nPartLength);
 				if (pKernelImage != 0)
 				{
 					assert (pPartData != 0);

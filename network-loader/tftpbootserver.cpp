@@ -5,6 +5,7 @@
 // Based on Circle sample/38-bootloader (GPLv3), R. Stange.
 //
 #include "tftpbootserver.h"
+#include "stagealloc.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/util.h>
@@ -148,7 +149,7 @@ boolean CTFTPBootServer::FileCreate (const char *pFileName)
 
 		if (m_pWriteBuf == 0)
 		{
-			m_pWriteBuf = new (HEAP_HIGH) u8[WRITE_BUF_SIZE];
+			m_pWriteBuf = (u8 *) StageAlloc (WRITE_BUF_SIZE);
 		}
 		m_nWriteBufFill = 0;
 
@@ -178,9 +179,7 @@ boolean CTFTPBootServer::FileCreate (const char *pFileName)
 
 	if (m_pKernelBuffer == 0)
 	{
-		// pi-mame: stage in the high heap (>1GB) so a large incoming image
-		// can never overlap its own copy destination at MEM_KERNEL_START.
-		m_pKernelBuffer = new (HEAP_HIGH) u8[m_nMaxKernelSize];
+		m_pKernelBuffer = (u8 *) StageAlloc (m_nMaxKernelSize);
 		if (m_pKernelBuffer == 0)
 		{
 			return FALSE;
