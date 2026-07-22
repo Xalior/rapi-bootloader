@@ -32,17 +32,11 @@ BOARDS  ?= rpi3 rpi4 rpi5
 LOADERS ?= network-loader menu-loader
 DIST    ?= dist
 
-# Toolchain env (the Makefile is the entrypoint — no manual PATH / source):
-# GNU getopt for circle-stdlib's configure, and ccache if installed.
+# GNU getopt for circle-stdlib's configure (macOS BSD getopt drops long opts ->
+# wrong toolchain prefix). ccache is build/ccache.sh's job (mandatory source).
 GETOPT_BIN := $(firstword $(wildcard /opt/homebrew/opt/gnu-getopt/bin /usr/local/opt/gnu-getopt/bin))
 ifneq ($(GETOPT_BIN),)
 export PATH := $(GETOPT_BIN):$(PATH)
-endif
-CCACHE_SRC := $(shell command -v ccache 2>/dev/null)
-ifneq ($(CCACHE_SRC),)
-CCACHE_MASQ := $(CURDIR)/build/ccache-bin
-$(shell mkdir -p $(CCACHE_MASQ) && for t in gcc g++ c++; do ln -sf "$(CCACHE_SRC)" "$(CCACHE_MASQ)/aarch64-none-elf-$$t"; done)
-export PATH := $(CCACHE_MASQ):$(PATH)
 endif
 
 # LLVM/libc++ comes from a GIT CHECKOUT at a fixed tag via --libcxx-repo, NOT
