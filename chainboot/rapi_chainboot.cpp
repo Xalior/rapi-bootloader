@@ -44,6 +44,8 @@
 // firmware enters Circle at EL2, so the `hvc #0` return-to-EL2 vector
 // (Circle's HVCStub) is installed and live.
 //
+#include "rapi_chainboot.h"
+
 #include <circle/chainboot.h>
 #include <circle/interrupt.h>
 #include <circle/memory.h>
@@ -59,9 +61,10 @@ static const void *s_pKernelImage = 0;
 static size_t s_nKernelSize = 0;
 static u8 *s_pStub = 0;
 
-// Set by CKernel::Run() just before it returns ShutdownReboot: from then
-// on IsChainBootEnabled()'s caller is sysinit(), after device teardown.
-volatile bool g_bLoaderMainReturned = false;
+// Set through RapiChainBootMainReturning(), which a rider calls just before
+// its CKernel::Run() returns ShutdownReboot: from then on
+// IsChainBootEnabled()'s caller is sysinit(), after device teardown.
+static volatile bool s_bLoaderMainReturned = false;
 
 #define RAPI_STUB_MAX_SIZE	0x400
 
@@ -124,7 +127,7 @@ boolean IsChainBootEnabled (void)
 		return FALSE;
 	}
 
-	if (!g_bLoaderMainReturned)
+	if (!s_bLoaderMainReturned)
 	{
 		return TRUE;	// CKernel::Run()'s arming poll
 	}
@@ -178,6 +181,20 @@ void DoChainBoot (void)
 		: "x0", "x1", "x3", "x19", "x20", "x21", "memory");
 
 	__builtin_unreachable ();
+}
+
+void RapiChainBootMainReturning (void)
+{
+	s_bLoaderMainReturned = true;
+}
+
+#else
+
+// The Pi 3 and Pi 4 run Circle's own chain-boot, which needs no hand-off
+// signal. The riders call this unconditionally all the same, so neither
+// carries a board test of its own.
+void RapiChainBootMainReturning (void)
+{
 }
 
 #endif	// RASPPI >= 5

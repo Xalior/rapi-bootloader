@@ -6,6 +6,7 @@
 #include "kernel.h"
 #include "defaultsblock.h"
 #include "stagealloc.h"
+#include "rapi_chainboot.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/string.h>
@@ -542,6 +543,12 @@ TShutdownMode CKernel::Run (void)
 
 	m_Logger.Write (FromKernel, LogNotice, "Chain-booting ...");
 	m_Scheduler.Sleep (1);		// let the last screen writes settle
+
+	// main() is now returning: from here on IsChainBootEnabled()'s caller
+	// is sysinit(), running after the full ~CKernel device teardown. On the
+	// Pi 5 the shared chain-boot performs its hand-off there; on the other
+	// boards Circle's own path runs and this is a no-op.
+	RapiChainBootMainReturning ();
 
 	return ShutdownReboot;
 }

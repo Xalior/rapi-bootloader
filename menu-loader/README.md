@@ -10,7 +10,8 @@ Part of [rapi-bootloader](../README.md). Build with `make menu-loader` from the
 repo root (after `make deps`); it builds one image per board into
 `menu-loader/build/<board>/` (Circle's own names — `kernel8.img` / `kernel8-rpi4.img`
 / `kernel_2712.img` for RASPPI 3 / 4 / 5). Single-core by design — Circle's
-`EnableChainBoot()` refuses a multicore build.
+`EnableChainBoot()` refuses a multicore build, and the Raspberry Pi 5
+chain-boot in [`chainboot/`](../chainboot/) keeps the same restriction.
 
 ## On-card files
 

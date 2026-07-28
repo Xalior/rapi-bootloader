@@ -36,15 +36,11 @@ CIRCLE_STDLIB ?= circle-stdlib-rpi4
 # newlib + libc++ + Circle library set) and CIRCLE_STDLIB_INCLUDES.
 include $(ROOT)/$(CIRCLE_STDLIB)/Config.mk
 
-# The 0x800 defaults-block writer (PatchDefaults) is the shared ABI, now
-# owned by rapi-bootloader/defaultsblock and compiled verbatim here — one
-# source of truth. Explicit rules (below) build it into a local object;
-# EXTRAINCLUDE resolves its header for defaultsblock.o and kernel.o.
-DEFAULTSDIR = $(ROOT)/defaultsblock
-STAGEDIR = $(ROOT)/stagealloc
-EXTRAINCLUDE = -I$(DEFAULTSDIR) -I$(STAGEDIR)
+# The two shared parts every loader rides on — the 0x800 defaults-block ABI
+# and the chain-boot — with their include paths and build rules.
+include $(ROOT)/mk/commons.mk
 
-OBJS = main.o kernel.o bootmenu.o defaultsblock.o stagealloc.o
+OBJS = main.o kernel.o bootmenu.o $(COMMON_OBJS)
 
 # On circle-stdlib the loader links the full newlib + libc++ + Circle
 # library set (CIRCLE_STDLIB_LIBS from Config.mk). The Circle archives it
@@ -65,23 +61,6 @@ endif
 # up build-local generated headers; -I$(SRCDIR) the loader's own headers when
 # building out-of-tree (both are '.' for an in-place build).
 INCLUDE := -I. -I$(SRCDIR) $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
-
-# The shared 0x800 writer lives in rapi-bootloader/defaultsblock; compile it
-# into a local object here (Circle's %.o rule only matches same-directory
-# sources). The matching .d keeps a defaultsblock.h edit rebuilding it.
-stagealloc.o: $(STAGEDIR)/stagealloc.cpp
-	@echo "  CPP   $@"
-	@$(CPP) $(CPPFLAGS) -c -o $@ $<
-
-stagealloc.d: $(STAGEDIR)/stagealloc.cpp
-	@$(CPP) $(CPPFLAGS) -M -MG -MT stagealloc.o -MT $@ -MF $@ $<
-
-defaultsblock.o: $(DEFAULTSDIR)/defaultsblock.cpp
-	@echo "  CPP   $@"
-	@$(CPP) $(CPPFLAGS) -c -o $@ $<
-
-defaultsblock.d: $(DEFAULTSDIR)/defaultsblock.cpp
-	@$(CPP) $(CPPFLAGS) -M -MG -MT defaultsblock.o -MT $@ -MF $@ $<
 
 -include $(DEPS)
 

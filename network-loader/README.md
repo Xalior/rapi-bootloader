@@ -8,7 +8,9 @@ chain-boots it — reflash-free iteration: push a new image and it runs in RAM.
 
 Part of [rapi-bootloader](../README.md). Build with `make network-loader` from
 the repo root (after `make deps`); the image is `network-loader/kernel8-rpi4.img`.
-Single-core by design — Circle's `EnableChainBoot()` refuses a multicore build.
+Single-core by design — Circle's `EnableChainBoot()` refuses a multicore
+build, and the Raspberry Pi 5 chain-boot in [`chainboot/`](../chainboot/)
+keeps the same restriction.
 
 ## Network
 

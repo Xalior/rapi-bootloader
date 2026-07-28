@@ -22,6 +22,7 @@
 #include "tftpbootserver.h"
 #include "webdavserver.h"
 #include "eeeprobe.h"
+#include "rapi_chainboot.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/sysconfig.h>
@@ -234,16 +235,11 @@ TShutdownMode CKernel::Run (void)
 
 	m_Scheduler.Sleep (1);
 
-#if RASPPI >= 5
-	// Tell the Pi 5 chain-boot interposition (rapi_chainboot.cpp) that
 	// main() is now returning: from here on IsChainBootEnabled()'s caller
-	// is sysinit(), running after the full ~CKernel device teardown, and
-	// it performs the hand-off itself.
-	{
-		extern volatile bool g_bLoaderMainReturned;
-		g_bLoaderMainReturned = true;
-	}
-#endif
+	// is sysinit(), running after the full ~CKernel device teardown. On the
+	// Pi 5 the shared chain-boot performs its hand-off there; on the other
+	// boards Circle's own path runs and this is a no-op.
+	RapiChainBootMainReturning ();
 
 	return ShutdownReboot;
 }

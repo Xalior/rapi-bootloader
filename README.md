@@ -16,9 +16,10 @@ image at a fixed offset and chain-boot it:
   stamps the chosen defaults-string into a staged platform kernel image, and
   chain-boots it. See [`menu-loader/README.md`](menu-loader/README.md).
 
-Both are **single-core** by design: Circle's `EnableChainBoot()` refuses a
-multicore build, so the boot world is configured without
-`ARM_ALLOW_MULTI_CORE`.
+Both are **single-core** by design, so the C/C++ runtime world they link is
+configured without `ARM_ALLOW_MULTI_CORE`. Circle's `EnableChainBoot()`
+refuses a multicore build, and the Raspberry Pi 5 replacement described below
+keeps the same restriction.
 
 ## Where this comes from
 
@@ -128,12 +129,63 @@ python3 patch.py kernel8-rpi4.img 'c64 -iec8 ""'
 An empty string clears the block: the consuming kernel then appends nothing and
 boots its own default behaviour, so "unpatched" is not a special case.
 
+## The two shared parts
+
+A loader in this repository decides two things: where a payload kernel comes
+from, and which argument string goes into it. The network-loader receives the
+payload over the network; the menu-loader reads it from the SD card and asks a
+person to choose. Everything below that decision is identical, and lives in
+two directories that every loader uses:
+
+- `defaultsblock/` — the 0x800 argument-block writer described above.
+- `chainboot/` — placing a payload in memory where it can be received and
+  copied from, and then replacing the running loader with it.
+
+A loader gets both by including `mk/commons.mk` in its makefile and adding
+`$(COMMON_OBJS)` to its object list. This is one line rather than a copied
+set of build rules, because a loader that wires the shared parts by hand can
+miss one without the build failing.
+
+### Chain-boot on the Raspberry Pi 5
+
+On the Raspberry Pi 3 and Pi 4, Circle's own chain-boot is correct and is
+what those builds use. On the Pi 5 it cannot work, for three separate
+reasons:
+
+1. Circle switches the data cache off and then runs compiled C++ that uses
+   the stack. The Pi 5's Cortex-A76 core does not tolerate that order; the
+   Pi 4's Cortex-A72 does.
+2. Circle places its copy routine at address `0x7FC00`. On the Pi 5 that
+   address is inside Trusted Firmware, which occupies `0x1000` to `0x80000`
+   and stays in memory to start the payload's other CPU cores.
+3. The Pi 5 has a memory-side system cache that set/way cache maintenance
+   does not reach. Anything the loader leaves in it is stale data for a
+   payload that writes its early state with the memory management unit off
+   and reads it back with the unit on. Maintenance by virtual address is
+   honoured, and is what the replacement uses.
+
+`chainboot/rapi_chainboot.cpp` addresses all three by defining Circle's three
+chain-boot functions itself on Pi 5 builds. A library member is only linked
+when it resolves a symbol nothing else defines, so defining them here keeps
+Circle's version out of the build entirely. On the Pi 3 and Pi 4 the file
+defines none of them and Circle's version is linked as usual. The Circle tree
+itself is never modified.
+
+The one thing a loader must do is call `RapiChainBootMainReturning()` from
+`CKernel::Run()`, immediately before it returns `ShutdownReboot`. On the
+Pi 5 this marks the point after which the hand-off is safe to perform; on the
+other boards it does nothing, so a loader calls it without testing which
+board it is built for.
+
 ## Layout
 
 ```
 defaultsblock/   the shared 0x800 ABI (writer side): PatchDefaults()
+chainboot/       the shared chain-boot: staging a payload, and replacing
+                 the running loader with it (see below)
 network-loader/  the TFTP/HTTP/WebDAV chain-loader  (see its README)
 menu-loader/     the on-card boot picker            (see its README)
+mk/commons.mk    one include that gives a loader both shared parts
 mk/ld/           TLS-adjacent linker script + link rule (see below)
 circle-stdlib-rpi{3,4,5}/  submodules: one single-core C/C++ runtime world
                  per board (RASPPI 3/4/5); a loader links the selected one
