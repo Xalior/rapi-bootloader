@@ -54,6 +54,12 @@ public:
 	TShutdownMode Run (void);
 
 private:
+	// Acquire the loader's address: DHCP where a server answers, the baked
+	// static configuration where none does. The wait is bounded (see
+	// DHCP_WAIT_SECONDS) because a segment with no DHCP server is a normal
+	// case here, not a fault — the boot must not stall on it.
+	void AcquireNetworkConfig (void);
+
 	// Quiesce the USB stack (pump plug-and-play until xHCI settles) before
 	// any path that reboots. Circle's chain-boot/reboot teardown asserts
 	// (ptrlist m_pFirst == 0) if it tears an unsettled xHCI controller

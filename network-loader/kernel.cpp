@@ -24,6 +24,7 @@
 #include "eeeprobe.h"
 #include "rapi_chainboot.h"
 #include <circle/chainboot.h>
+#include <circle/net/dhcpclient.h>
 #include <circle/logger.h>
 #include <circle/sysconfig.h>
 #include <assert.h>
@@ -35,16 +36,20 @@
 // port 8080 -- PROPFIND/PUT/DELETE/MKCOL need a listener of their own.
 #define WEBDAV_PORT		8081
 
-// Network configuration — static, for a segment with no DHCP server.
-// The loader claims 192.168.42.99; edit these octets for your own LAN.
-//#define USE_DHCP
-
-#ifndef USE_DHCP
+// Network configuration. The loader asks for an address by DHCP first, and
+// uses these baked octets only when no server answers — so it runs both on an
+// ordinary network and on a segment that hands out nothing. Edit them for your
+// own LAN. The loader is a DHCP CLIENT only; it serves no addresses.
 static const u8 IPAddress[]      = {192, 168, 42, 99};
 static const u8 NetMask[]        = {255, 255, 255, 0};
 static const u8 DefaultGateway[] = {192, 168, 42, 1};
 static const u8 DNSServer[]      = {192, 168, 42, 1};
-#endif
+
+// How long a DHCP server gets to answer before the static address is used.
+// One full Circle DISCOVER attempt is 4 s (its retry schedule is 4/8/16/32 s),
+// so this covers the first attempt end to end: a server that is there answers
+// in milliseconds, and a segment with none costs the boot only this long.
+#define DHCP_WAIT_SECONDS	4
 
 static const char FromKernel[] = "kernel";
 
@@ -61,11 +66,14 @@ CKernel::CKernel (void)
 	m_Tee (&m_Screen, &m_Serial),		// logger fans out to glass + UART
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
-	m_USBHCI (&m_Interrupt, &m_Timer, TRUE)	// TRUE: plug-and-play
-#ifndef USE_DHCP
-	, m_Net (IPAddress, NetMask, DefaultGateway, DNSServer)
-#endif
-	, m_EMMC (&m_Interrupt, &m_Timer, 0)
+	m_USBHCI (&m_Interrupt, &m_Timer, TRUE),	// TRUE: plug-and-play
+	// Constructed with the static configuration on purpose, even though DHCP
+	// is tried first: CNetSubSystem decides DHCP-vs-static by whether this
+	// address is null when Initialize() runs, and its own DHCP client cannot
+	// be reached or stopped afterwards. Starting static keeps that client out
+	// of the picture so AcquireNetworkConfig() can own a BOUNDED one instead.
+	m_Net (IPAddress, NetMask, DefaultGateway, DNSServer),
+	m_EMMC (&m_Interrupt, &m_Timer, 0)
 {
 }
 
@@ -173,6 +181,11 @@ boolean CKernel::Initialize (void)
 
 	if (bOK)
 	{
+		AcquireNetworkConfig ();
+	}
+
+	if (bOK)
+	{
 		// SD write access is optional: without it the chainloader still
 		// boots kernels, it just can't service sd/ file transfers.
 		if (   !m_EMMC.Initialize ()
@@ -184,6 +197,61 @@ boolean CKernel::Initialize (void)
 	}
 
 	return bOK;
+}
+
+void CKernel::AcquireNetworkConfig (void)
+{
+	// Ask DHCP for an address, and keep the baked static one only if nothing
+	// answers within DHCP_WAIT_SECONDS.
+	//
+	// Circle's own DHCP path cannot do this: CNetSubSystem creates its client
+	// internally, keeps it private, and its client has no bounded failure --
+	// with no server it retries DISCOVER for a minute, sleeps a minute, and
+	// starts again forever, logging a warning each round (which on this loader
+	// would scroll the status screen a remote operator reads). Initialize()
+	// would simply never return. So the client here is ours: same Circle class,
+	// same protocol, but we hold the pointer, we time it, and we stop it.
+	//
+	// The address is dropped for the duration of the ask. Answering ARP for
+	// 192.168.42.99 on a network that hands out addresses would be squatting
+	// on an address this machine was never given; a DHCP client is meant to be
+	// silent until it has a lease.
+	m_Net.GetConfig ()->Reset ();
+
+	CDHCPClient *pDHCPClient = new CDHCPClient (&m_Net, m_Net.GetHostname ());
+
+	unsigned nStart = m_Timer.GetTicks ();
+	while (!pDHCPClient->IsBound ())
+	{
+		if (m_Timer.GetTicks () - nStart >= DHCP_WAIT_SECONDS * HZ)
+		{
+			// Park the client rather than leave it retrying: a suspended
+			// task is skipped by the scheduler for good, so it can never
+			// wake up later and overwrite the static configuration below.
+			pDHCPClient->Suspend ();
+
+			m_Net.GetConfig ()->SetIPAddress (IPAddress);
+			m_Net.GetConfig ()->SetNetMask (NetMask);
+			m_Net.GetConfig ()->SetDefaultGateway (DefaultGateway);
+			m_Net.GetConfig ()->SetDNSServer (DNSServer);
+
+			m_Logger.Write (FromKernel, LogNotice,
+					"no DHCP offer in %u seconds -- using the static address",
+					DHCP_WAIT_SECONDS);
+
+			return;
+		}
+
+		// The net device may still be enumerating on USB; keep
+		// plug-and-play pumped while waiting, as Circle's own samples do.
+		m_USBHCI.UpdatePlugAndPlay ();
+
+		m_Scheduler.Yield ();
+	}
+
+	// Bound: the client has already written the leased address, mask, gateway
+	// and DNS server into the live configuration.
+	m_Logger.Write (FromKernel, LogNotice, "address acquired by DHCP");
 }
 
 TShutdownMode CKernel::Run (void)
