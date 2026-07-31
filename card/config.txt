@@ -75,3 +75,26 @@ framebuffer_ignore_alpha=1
 kernel=kernel_2712.img
 framebuffer_depth=32
 framebuffer_ignore_alpha=1
+
+# --- network-loader settings ---
+#
+# The Raspberry Pi firmware skips any section whose name it does not know, so
+# this one is invisible to it and is where the network-loader keeps its own
+# settings. It MUST be the last section in this file: everything below a
+# section heading belongs to that section, so any firmware setting placed
+# after this one would be skipped along with it.
+#
+# State an address here and the loader uses it. State none -- or delete the
+# section -- and the loader asks DHCP for one and reports what it was given on
+# its screen and serial log. There is no built-in address.
+#
+#   ipaddress   the loader's address, e.g. 192.168.1.50   (required for static)
+#   netmask     defaults to 255.255.255.0 if not stated
+#   gateway     optional; needed only to reach the loader from another segment
+#
+# The loader resolves no names, so it needs no DNS server.
+#
+#[rapi-bootloader]
+#ipaddress=192.168.1.50
+#netmask=255.255.255.0
+#gateway=192.168.1.1

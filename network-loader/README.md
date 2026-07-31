@@ -7,14 +7,10 @@ image over the wire into a high-heap staging buffer, optionally stamps an argv
 chain-boots it — iteration without rewriting the SD card: push a new image and
 it runs from RAM.
 
-**On the Raspberry Pi 5, a chain-booted image cannot use the built-in
-Ethernet.** The Pi 5 Ethernet driver reads the adapter's hardware address from
-the device tree that the firmware passes at power-on, and a chain-booted image
-is entered without it, so network start-up fails. Payloads that do not use the
-network (an emulator, for example) chain-boot normally. The practical
-consequence is that this loader cannot be used to test a *new build of itself*
-in RAM on a Pi 5: a new loader has to be written to the SD card and the board
-powered on.
+The chain-boot carries the device tree over to the image it boots, so a
+chain-booted image has a working network on every board. (Without that, on the
+Raspberry Pi 5 the Ethernet driver has no source for the adapter's hardware
+address and networking does not start.)
 
 Part of [rapi-bootloader](../README.md). Build with `make network-loader` from
 the repo root (after `make deps`); the image is `network-loader/kernel8-rpi4.img`.
@@ -24,22 +20,32 @@ keeps the same restriction.
 
 ## Network
 
-At startup the loader asks for an address by DHCP. If a server answers within
-4 seconds, the loader uses the address, netmask, gateway and DNS server it is
-given. If no server answers in that time, the loader uses the fixed address
-**192.168.42.99** instead, so it also works on a network that hands out no
-addresses at all. Edit the address octets at the top of `kernel.cpp` to change
-the fixed address for your own network.
+The loader takes its address from the SD card, in a `[rapi-bootloader]`
+section of `config.txt`:
 
-The loader only ever *requests* an address. It never hands addresses out to
-other machines.
+    [rapi-bootloader]
+    ipaddress=192.168.1.50
+    netmask=255.255.255.0
+    gateway=192.168.1.1
 
-The 4-second limit is chosen because a DHCP server that is present answers in
-a few milliseconds; the wait costs those 4 seconds only on a network where no
-server exists.
+State an address there and the loader uses it. State none, or leave the
+section out, and the loader asks DHCP for one and reports what it was given on
+its screen and its serial log. There is no built-in address.
 
-The DHCP half of this has not yet been tested against a live DHCP server. The
-fall back to the fixed address is the path in daily use.
+`config.txt` is the Raspberry Pi firmware's own boot configuration file. The
+firmware skips any section whose name it does not recognise, so this section is
+invisible to it, which is why the loader's settings can live in the file you
+are already editing. **Keep it as the last section in the file**: every setting
+below a section heading belongs to that section, so a firmware setting placed
+after this one would be skipped along with it.
+
+Only `ipaddress` is required for a static address. `netmask` defaults to
+255.255.255.0. A `gateway` is needed only to reach the loader from a different
+network segment. The loader resolves no names, so it needs no DNS server.
+
+If no address is configured and no DHCP server answers, the loader keeps
+asking and says so; there is nothing else for it to do until it has an
+address.
 
 ## Interfaces
 
@@ -62,7 +68,8 @@ Two reserved TFTP names are not images:
 - `sd/<path>` — writes a file onto the SD card instead of chain-booting.
 
 Push with any TFTP client, e.g.
-`tftp -m binary 192.168.42.99 -c put kernel8-rpi4.img`.
+`tftp -m binary 192.168.1.50 -c put kernel8-rpi4.img`, using whatever
+address the loader reported at start-up.
 
 ### HTTP — port 8080
 
@@ -74,7 +81,7 @@ boot), and press *Boot now!*. Plus a `/reboot` endpoint.
 ### WebDAV — port 8081 (class 1)
 
 Read/write access to the whole SD card (the DAV root) from a WebDAV client at
-`http://192.168.42.99:8081/`. Implemented methods:
+`http://<loader-address>:8081/`. Implemented methods:
 
 | Method | Purpose |
 |--------|---------|
@@ -91,4 +98,4 @@ capability probe succeeds and it will engage. Command-line and scripted
 clients (`curl`, `cadaver`, davfs2) work fully. GUI file managers that require
 class-2 locking to mount **read-write** — notably macOS Finder — may mount
 read-only or decline the write. Mount from Finder with ⌘K →
-`http://192.168.42.99:8081/`.
+`http://<loader-address>:8081/`.
