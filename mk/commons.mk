@@ -6,8 +6,10 @@
 # decision is shared, and there are exactly two shared parts:
 #
 #   defaultsblock/  the 0x800 defaults-block ABI — the writer that patches
-#                   a defaults-string into a staged image, and the magic,
-#                   capacity and length rules that make it safe.
+#                   a defaults-string into a staged image, the magic,
+#                   capacity and length rules that make it safe, and the
+#                   one decision every rider would otherwise make for
+#                   itself: an image with no block boots unpatched.
 #   chainboot/      the chain-boot itself — staging a payload somewhere it
 #                   can be received and copied from (StageAlloc), and the
 #                   hand-off that replaces the running loader with it.
@@ -51,4 +53,4 @@ EXTRAINCLUDE += -I$(DEFAULTSDIR) -I$(CHAINBOOTDIR)
 # out of that link (an archive member is pulled only for an otherwise
 # undefined symbol); on the Pi 3 and Pi 4 it defines none of them and
 # Circle's own implementation is what runs.
-COMMON_OBJS = defaultsblock.o stagealloc.o rapi_chainboot.o
+COMMON_OBJS = defaultsblock.o bootimage.o stagealloc.o rapi_chainboot.o

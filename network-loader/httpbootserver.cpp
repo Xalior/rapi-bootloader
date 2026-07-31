@@ -19,6 +19,7 @@
 //
 #include "httpbootserver.h"
 #include "defaultsblock.h"
+#include "bootimage.h"
 #include "stagealloc.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
@@ -142,26 +143,10 @@ THTTPStatus CHTTPBootServer::GetContent (const char  *pPath,
 		}
 		else
 		{
-			if (Defaults[0] != '\0')
-			{
-				// Stamp the argv string into the 0x800 block. PatchDefaults
-				// verifies the PM8D magic and refuses to write into an image
-				// that has no block — such a kernel just boots unpatched.
-				TPatchResult Result = PatchDefaults (pKernelImage, nKernelLength, Defaults);
-				CLogger::Get ()->Write (FromHTTPBootServer,
-					Result == PatchOK ? LogNotice : LogWarning,
-					"ABI parameters: %s", PatchResultString (Result));
-
-				pMsg = Result == PatchOK
-				     ? "ABI parameters stamped -- now booting..."
-				     : "Image has no ABI defaults block -- booting unpatched...";
-			}
-			else
-			{
-				pMsg = "Now booting...";
-			}
-
-			EnableChainBoot (pKernelImage, nKernelLength);
+			// One shared decision for both push paths: stamp the ABI
+			// parameters when the image has a block, boot it either way.
+			// Its account of what happened is what the page reports.
+			pMsg = BootImageWithDefaults (pKernelImage, nKernelLength, Defaults);
 		}
 
 		assert (pMsg != 0);

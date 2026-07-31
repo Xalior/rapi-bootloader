@@ -5,6 +5,7 @@
 //
 #include "kernel.h"
 #include "defaultsblock.h"
+#include "bootimage.h"
 #include "stagealloc.h"
 #include "rapi_chainboot.h"
 #include <circle/chainboot.h>
@@ -345,28 +346,18 @@ void CKernel::BootSelection (unsigned nIndex)
 	m_Logger.Write (FromKernel, LogNotice,
 			"Read OK: %llu bytes staged", (unsigned long long) nOffset);
 
-	// Patch the chosen defaults-string into the staged image at 0x800. The
-	// patcher verifies the magic seatbelt and enforces the block capacity;
-	// any refusal leaves the menu up and boots nothing.
-	TPatchResult Result = PatchDefaults (m_pImageBuffer, (size_t) nSize, pString);
-	if (Result != PatchOK)
-	{
-		m_Logger.Write (FromKernel, LogError,
-				"PatchDefaults refused (TPatchResult %u): %s",
-				(unsigned) Result, PatchResultString (Result));
-		Msg.Format ("malformed image - patch refused: %s",
-			    PatchResultString (Result));
-		Fatal ((const char *) Msg);
-	}
+	// Stamp the chosen defaults-string into the staged image and arm the
+	// chain-boot. The shared writer decides what an image with no 0x800
+	// block means, and its answer is that it boots unpatched -- the same
+	// answer the network-loader gives, from the same code.
+	const char *pResult = BootImageWithDefaults (m_pImageBuffer, (size_t) nSize,
+						     pString);
 
-	m_Logger.Write (FromKernel, LogNotice,
-			"PatchDefaults OK; booting %s with defaults: %s",
-			pLabel, pString);
-	WriteString ("  patched, chain-booting ...\n");
+	m_Logger.Write (FromKernel, LogNotice, "%s: %s", pLabel, pResult);
 
-	// Arm the chain-boot; the main loop notices IsChainBootEnabled() and
-	// returns, and Circle's reboot path hands control to the staged image.
-	EnableChainBoot (m_pImageBuffer, (size_t) nSize);
+	Msg.Format ("  %s ...\n", pResult);
+	WriteString ((const char *) Msg);
+
 	m_Logger.Write (FromKernel, LogNotice,
 			"EnableChainBoot armed (%llu bytes from %p)",
 			(unsigned long long) nSize, m_pImageBuffer);

@@ -6,6 +6,7 @@
 //
 #include "tftpbootserver.h"
 #include "stagealloc.h"
+#include "bootimage.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/util.h>
@@ -266,40 +267,16 @@ void CTFTPBootServer::UpdateStatus (TStatus Status, const char *pFileName)
 	case StatusWriteCompleted:
 		m_bKernelClosed = FALSE;
 
-		// Dev tooling: if an "inject" push armed a defaults-string,
-		// stamp it into this image's 0x800 block before booting.
-		// The write is magic-verified and length-enforced by the
-		// shared PatchDefaults; a missing/short block is refused,
-		// never stamped over startup code. One-shot: disarm after
-		// the attempt so it never leaks to a later un-injected boot.
-		if (m_bInjectPending)
-		{
-			TPatchResult Result = PatchDefaults (
-				m_pKernelBuffer, m_nCurrentOffset, m_InjectText);
-			if (Result == PatchOK)
-			{
-				CLogger::Get ()->Write (FromBootServer, LogNotice,
-							"defaults injection: ok");
-			}
-			else
-			{
-				// An image with no defaults block is not an error
-				// here: this loader boots any Circle kernel, and one
-				// that carries no ABI simply takes no defaults. Say
-				// which happened, then boot it as it arrived rather
-				// than refuse it.
-				CLogger::Get ()->Write (FromBootServer, LogWarning,
-							"defaults injection: %s"
-							" -- booting unpatched",
-							PatchResultString (Result));
-			}
+		// A pending "inject" push supplies the defaults-string. The
+		// shared writer stamps it when this image has a 0x800 block and
+		// boots it either way. One-shot: disarmed after the attempt so
+		// it never leaks into a later un-injected boot.
+		BootImageWithDefaults (m_pKernelBuffer, m_nCurrentOffset,
+				       m_bInjectPending ? m_InjectText : 0);
 
-			m_bInjectPending = FALSE;
-			m_nInjectFill = 0;
-			m_InjectText[0] = '\0';
-		}
-
-		EnableChainBoot (m_pKernelBuffer, m_nCurrentOffset);
+		m_bInjectPending = FALSE;
+		m_nInjectFill = 0;
+		m_InjectText[0] = '\0';
 		break;
 
 	case StatusWriteAborted:

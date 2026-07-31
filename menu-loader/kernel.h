@@ -81,10 +81,11 @@ private:
 	// footer. Sizes the scrolling window; always at least one.
 	unsigned VisibleRows (void) const;
 
-	// Load PLATFORM_KERNEL_PATH into the staging buffer, patch the chosen
+	// Load PLATFORM_KERNEL_PATH into the staging buffer, stamp the chosen
 	// defaults-string at 0x800, and arm chain-boot. A kernel that cannot be
-	// booted (missing image, bad read, magic/patch refusal) is fatal — see
-	// Fatal() — never a silent return to the menu.
+	// READ (missing image, bad read) is fatal — see Fatal() — never a silent
+	// return to the menu. An image that takes no defaults is not such a
+	// case: it boots unpatched, the same as on the network-loader.
 	void BootSelection (unsigned nIndex);
 
 	// A kernel we cannot boot is fatal: show the reason on the glass (which
