@@ -209,10 +209,6 @@ void CKernel::ConfigureNetwork (void)
 		m_Net.GetConfig ()->SetDefaultGateway (Config.Gateway);
 	}
 
-	m_Logger.Write (FromKernel, LogNotice,
-			"config.txt gives %u.%u.%u.%u -- using it",
-			Config.IPAddress[0], Config.IPAddress[1],
-			Config.IPAddress[2], Config.IPAddress[3]);
 }
 
 void CKernel::WaitForNetwork (void)
@@ -239,19 +235,22 @@ void CKernel::WaitForNetwork (void)
 					      : "still waiting for the network link");
 		}
 	}
+
+	// The whole of the network configuration, in one line: the address the
+	// loader ended up with, and which of the two ways it got there.
+	CString IPString;
+	m_Net.GetConfig ()->GetIPAddress ()->Format (&IPString);
+	m_Logger.Write (FromKernel, LogNotice, "network: %s (%s)",
+			(const char *) IPString, bDHCP ? "DHCP" : "config.txt");
 }
 
 TShutdownMode CKernel::Run (void)
 {
 	CString IPString;
 	m_Net.GetConfig ()->GetIPAddress ()->Format (&IPString);
-	m_Logger.Write (FromKernel, LogNotice, "Open \"http://%s:%u/\" in your web browser!",
+	m_Logger.Write (FromKernel, LogNotice, "http://%s:%u/",
 			(const char *) IPString, HTTP_BOOT_PORT);
-	m_Logger.Write (FromKernel, LogNotice,
-			"Try \"tftp -m binary %s -c put kernel.img\" from another computer!",
-			(const char *) IPString);
-	m_Logger.Write (FromKernel, LogNotice,
-			"WebDAV (PROPFIND/GET/PUT/DELETE/MKCOL) at \"http://%s:%u/\"",
+	m_Logger.Write (FromKernel, LogNotice, "http://%s:%u/",
 			(const char *) IPString, WEBDAV_PORT);
 
 	new CHTTPBootServer (&m_Net, HTTP_BOOT_PORT, KERNEL_MAX_SIZE + 2000);

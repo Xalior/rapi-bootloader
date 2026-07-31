@@ -120,9 +120,7 @@ void RapiReadNetConfig (TRapiNetConfig *pConfig)
 	FIL File;
 	if (f_open (&File, CONFIG_PATH, FA_READ) != FR_OK)
 	{
-		CLogger::Get ()->Write (FromNetConfig, LogNotice,
-					"no " CONFIG_PATH " -- asking DHCP");
-		return;
+		return;			// no file, no address: DHCP
 	}
 
 	static char Buffer[CONFIG_MAX_BYTES];
@@ -230,11 +228,5 @@ void RapiReadNetConfig (TRapiNetConfig *pConfig)
 							"gateway is not an address -- ignored");
 			}
 		}
-	}
-
-	if (!pConfig->bStatic)
-	{
-		CLogger::Get ()->Write (FromNetConfig, LogNotice,
-					"no address in [" CONFIG_SECTION "] -- asking DHCP");
 	}
 }
