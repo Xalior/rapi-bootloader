@@ -276,10 +276,23 @@ void CTFTPBootServer::UpdateStatus (TStatus Status, const char *pFileName)
 		{
 			TPatchResult Result = PatchDefaults (
 				m_pKernelBuffer, m_nCurrentOffset, m_InjectText);
-			CLogger::Get ()->Write (FromBootServer,
-				Result == PatchOK ? LogNotice : LogWarning,
-				"defaults injection: %s",
-				PatchResultString (Result));
+			if (Result == PatchOK)
+			{
+				CLogger::Get ()->Write (FromBootServer, LogNotice,
+							"defaults injection: ok");
+			}
+			else
+			{
+				// An image with no defaults block is not an error
+				// here: this loader boots any Circle kernel, and one
+				// that carries no ABI simply takes no defaults. Say
+				// which happened, then boot it as it arrived rather
+				// than refuse it.
+				CLogger::Get ()->Write (FromBootServer, LogWarning,
+							"defaults injection: %s"
+							" -- booting unpatched",
+							PatchResultString (Result));
+			}
 
 			m_bInjectPending = FALSE;
 			m_nInjectFill = 0;
