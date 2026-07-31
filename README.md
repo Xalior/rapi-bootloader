@@ -1,7 +1,7 @@
 # rapi-bootloader
 
 A single-core boot building block for bare-metal Raspberry Pi 4 payloads
-built on the [Circle](https://github.com/rsta2/circle) framework. It is two
+built on the [Circle](https://github.com/rsta2/circle) framework. These are
 small argv-loaders that stamp a plain-text argument string into a kernel
 image at a fixed offset and chain-boot it:
 
@@ -137,13 +137,13 @@ python3 patch.py kernel8-rpi4.img 'c64 -iec8 ""'
 An empty string clears the block: the consuming kernel then appends nothing and
 boots its own default behaviour, so "unpatched" is not a special case.
 
-## The two shared parts
+## The shared parts
 
-A loader in this repository decides two things: where a payload kernel comes
+A loader in this repository decides: where a payload kernel comes
 from, and which argument string goes into it. The network-loader receives the
 payload over the network; the menu-loader reads it from the SD card and asks a
 person to choose. Everything below that decision is identical, and lives in
-two directories that every loader uses:
+directories that every loader uses:
 
 - `defaultsblock/` — the 0x800 argument-block writer described above.
 - `chainboot/` — placing a payload in memory where it can be received and
@@ -157,7 +157,7 @@ miss one without the build failing.
 ### Chain-boot on the Raspberry Pi 5
 
 On the Raspberry Pi 3 and Pi 4, Circle's own chain-boot is correct and is
-what those builds use. On the Pi 5 it cannot work, for three separate
+what those builds use. On the Pi 5 it cannot work, for separate
 reasons:
 
 1. Circle switches the data cache off and then runs compiled C++ that uses
@@ -172,7 +172,7 @@ reasons:
    and reads it back with the unit on. Maintenance by virtual address is
    honoured, and is what the replacement uses.
 
-`chainboot/rapi_chainboot.cpp` addresses all three by defining Circle's three
+`chainboot/rapi_chainboot.cpp` addresses all of them by defining Circle's
 chain-boot functions itself on Pi 5 builds. A library member is only linked
 when it resolves a symbol nothing else defines, so defining them here keeps
 Circle's version out of the build entirely. On the Pi 3 and Pi 4 the file
@@ -221,13 +221,13 @@ carry. The Circle tree itself is never modified.
 ```sh
 git clone --recursive <this-repo-url> rapi-bootloader
 cd rapi-bootloader
-make deps                 # fetch + build all three single-core worlds (RASPPI 3/4/5)
+make deps                 # fetch + build every single-core world (RASPPI 3/4/5)
 make -j loaders           # every loader x every board, concurrently -> dist/
 # or one combo at a time:
 make network-loader-rpi4  # just the Pi 4 chain-loader, in its own build tree
 ```
 
-`make deps` initialises the three `circle-stdlib-rpi{3,4,5}` world submodules
+`make deps` initialises the `circle-stdlib-rpi{3,4,5}` world submodules
 (each pinned to the project's tested commit), clones the immutable-tagged
 LLVM/libc++ checkout each builds libc++ from, then configures every world
 **single-core** (`-r <board> -p aarch64-none-elf- --libcxx-repo
@@ -237,7 +237,7 @@ LLVM/libc++ checkout each builds libc++ from, then configures every world
 `<loader>/build/<board>/` — isolated objects and a distinctly-named image
 (`kernel8.img` / `kernel8-rpi4.img` / `kernel_2712.img`) — so all combos build
 concurrently with zero collision, then collects the images into
-`dist/<loader>/`. Every supported board maps onto one of the three worlds
+`dist/<loader>/`. Every supported board maps onto one of these worlds
 (Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4, Pi 5 + CM5 → rpi5); the
 board→image routing lives in the card's `config.txt`. This per-board,
 concurrent-tree methodology is the one the pi-mame split reuses to dispatch
