@@ -20,6 +20,11 @@ arm_64bit=1
 kernel_address=0x80000
 initial_turbo=0
 
+# The firmware's default overscan insets the picture on some panels; this
+# appliance always wants the full frame (geometry belongs to the payload
+# and the panel, never to firmware borders).
+disable_overscan=1
+
 # Enable this for JTAG / SWD debugging!
 #enable_jtag_gpio=1
 
