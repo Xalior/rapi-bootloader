@@ -5,12 +5,14 @@ built on the [Circle](https://github.com/rsta2/circle) framework. It is two
 small argv-loaders that stamp a plain-text argument string into a kernel
 image at a fixed offset and chain-boot it:
 
-- **network-loader** — a development chain-loader. It brings up the network,
-  serves TFTP, HTTP (port 8080) and WebDAV (port 8081), receives a kernel
-  image over the wire into a high-heap staging buffer, optionally stamps an
-  argv defaults-string into it, and chain-boots it. Reflash-free iteration:
-  push a new image, it runs in RAM. See
-  [`network-loader/README.md`](network-loader/README.md).
+- **network-loader** — a development chain-loader. It takes its address from a
+  `[rapi-bootloader]` section of the card's `config.txt`, or asks DHCP when
+  that section states none; serves TFTP, HTTP (port 8080) and WebDAV
+  (port 8081); receives a kernel image over the wire into a high-heap staging
+  buffer, optionally stamps an argv defaults-string into it, and chain-boots
+  it. Iteration without rewriting the card: push a new image, it runs in RAM.
+  `card/config.txt.example` is a card configuration with the section filled
+  in. See [`network-loader/README.md`](network-loader/README.md).
 - **menu-loader** — an on-card boot picker. It reads a `bootmenu.cfg` list
   from the SD card, presents it on screen, takes a keyboard selection,
   stamps the chosen defaults-string into a staged platform kernel image, and
