@@ -54,11 +54,14 @@ public:
 	TShutdownMode Run (void);
 
 private:
-	// Acquire the loader's address: DHCP where a server answers, the baked
-	// static configuration where none does. The wait is bounded (see
-	// DHCP_WAIT_SECONDS) because a segment with no DHCP server is a normal
-	// case here, not a fault — the boot must not stall on it.
-	void AcquireNetworkConfig (void);
+	// Apply the network settings from the card's config.txt, before
+	// CNetSubSystem::Initialize() reads them. An address there is used as
+	// given; none means DHCP. Requires the card to be mounted.
+	void ConfigureNetwork (void);
+
+	// Block until the network is usable: the link for a static address, a
+	// lease for DHCP. Reports progress so a stalled boot is readable.
+	void WaitForNetwork (void);
 
 	// Quiesce the USB stack (pump plug-and-play until xHCI settles) before
 	// any path that reboots. Circle's chain-boot/reboot teardown asserts

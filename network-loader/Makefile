@@ -49,7 +49,7 @@ include $(ROOT)/$(CIRCLE_STDLIB)/Config.mk
 # and the chain-boot — with their include paths and build rules.
 include $(ROOT)/mk/commons.mk
 
-OBJS = main.o kernel.o httpbootserver.o tftpbootserver.o webdavserver.o eeeprobe.o $(COMMON_OBJS)
+OBJS = main.o kernel.o httpbootserver.o tftpbootserver.o webdavserver.o eeeprobe.o netconfig.o $(COMMON_OBJS)
 
 # On circle-stdlib the loader links the full newlib + libc++ + Circle
 # library set (CIRCLE_STDLIB_LIBS from Config.mk). The Circle archives it
