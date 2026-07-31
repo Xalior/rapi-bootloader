@@ -41,7 +41,9 @@ public. It gives the pieces one home and the argument-passing ABI a single
 owner, so that the next project can depend on them rather than write them
 again. Nothing here is specific to the payload that finally prompted the
 collection: any Circle kernel carrying the 0x800 block can be pushed, stamped
-and booted by these loaders.
+and booted by these loaders — and any Circle kernel WITHOUT one can be booted
+too, unstamped. The block is an optional ABI, so a loader here boots a plain
+Circle kernel as readily as an argv-taking one.
 
 ## The 0x800 defaults-block ABI
 
@@ -59,7 +61,11 @@ image offset **0x800**:
 `PatchDefaults()` verifies the magic first and refuses the write if it is
 absent (a re-ordered link script becomes a refused write, never argv text
 stamped over startup code) and enforces the string length against the
-block's own `Capacity` field. The consuming kernel tokenises `Text[]` and
+block's own `Capacity` field. The refusal is of the WRITE only: an image
+with no block still boots, unstamped. Loaders do not decide this for
+themselves — `BootImageWithDefaults()` in `defaultsblock/` stamps where it
+can and chain-boots either way, so every loader answers the question the same
+way and a new one inherits the answer. The consuming kernel tokenises `Text[]` and
 appends it to its own argv.
 
 The struct is `PACKED` and little-endian (matching AArch64), so its `sizeof`

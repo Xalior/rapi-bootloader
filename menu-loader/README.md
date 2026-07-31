@@ -38,6 +38,8 @@ Third entry           | string-three
 - Split on the **first** `|`; a line without one is ignored (logged).
 - The label (before the `|`) is shown in the menu; the string (after it) is
   the argv text stamped into the staged image's 0x800 block for that entry.
+  An image that carries no 0x800 block boots unstamped rather than being
+  refused, exactly as on the network-loader — both use the same writer.
 - Whitespace around the `|` is trimmed, as is a trailing CR (CRLF files are
   fine).
 - Limits: up to **64** entries, label ≤ 96 bytes, string ≤ 1024 bytes;

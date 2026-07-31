@@ -59,7 +59,9 @@ refused at open, before a byte transfers, so a mis-named local copy (say
 `commodore-core.img`) fails fast instead of half-uploading. A received
 `kernel*.img` is staged in the **high heap** (above 1 GB, so a MAME-sized
 image can never overlap its own copy destination at the kernel load address),
-stamped with any pending defaults-string, then chain-booted.
+stamped with any pending defaults-string, then chain-booted. An image with no
+0x800 block is booted unstamped rather than refused, so any Circle kernel can
+be pushed here.
 
 Two reserved TFTP names are not images:
 
