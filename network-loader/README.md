@@ -4,7 +4,17 @@ A development chain-loader for bare-metal Raspberry Pi 4 payloads. It brings
 up the network on a static IP, serves TFTP + HTTP + WebDAV, receives a kernel
 image over the wire into a high-heap staging buffer, optionally stamps an argv
 [defaults-string](../README.md#the-0x800-defaults-block-abi) into it, and
-chain-boots it — reflash-free iteration: push a new image and it runs in RAM.
+chain-boots it — iteration without rewriting the SD card: push a new image and
+it runs from RAM.
+
+**On the Raspberry Pi 5, a chain-booted image cannot use the built-in
+Ethernet.** The Pi 5 Ethernet driver reads the adapter's hardware address from
+the device tree that the firmware passes at power-on, and a chain-booted image
+is entered without it, so network start-up fails. Payloads that do not use the
+network (an emulator, for example) chain-boot normally. The practical
+consequence is that this loader cannot be used to test a *new build of itself*
+in RAM on a Pi 5: a new loader has to be written to the SD card and the board
+powered on.
 
 Part of [rapi-bootloader](../README.md). Build with `make network-loader` from
 the repo root (after `make deps`); the image is `network-loader/kernel8-rpi4.img`.
@@ -14,8 +24,22 @@ keeps the same restriction.
 
 ## Network
 
-Static IP **192.168.42.99** by default (the segment is assumed to have no DHCP
-server). Edit the address octets at the top of `kernel.cpp` for your own LAN.
+At startup the loader asks for an address by DHCP. If a server answers within
+4 seconds, the loader uses the address, netmask, gateway and DNS server it is
+given. If no server answers in that time, the loader uses the fixed address
+**192.168.42.99** instead, so it also works on a network that hands out no
+addresses at all. Edit the address octets at the top of `kernel.cpp` to change
+the fixed address for your own network.
+
+The loader only ever *requests* an address. It never hands addresses out to
+other machines.
+
+The 4-second limit is chosen because a DHCP server that is present answers in
+a few milliseconds; the wait costs those 4 seconds only on a network where no
+server exists.
+
+The DHCP half of this has not yet been tested against a live DHCP server. The
+fall back to the fixed address is the path in daily use.
 
 ## Interfaces
 
