@@ -57,7 +57,39 @@ endif
 LLVM_REPO = https://codeberg.org/larchcone/llvm-project.git
 LLVM_TAG  = circle-stdlib-22.1.3-v2
 
-.PHONY: deps loaders images dist card clean $(LOADERS)
+# ONE checkout of that tag, shared by every world here. All three build the
+# same immutable tag, so fetching it once per world was three downloads of
+# identical bytes from a small volunteer-run forge, and three copies on disk.
+#
+# Only the runtimes build is ever read, so the checkout is sparse: the three
+# runtime libraries, the cmake modules runtimes/CMakeLists.txt reaches for
+# (../cmake, ../llvm/cmake, ../third-party, and ../llvm for llvm/utils/llvm-lit),
+# and libc -- libc++'s from_chars includes libc/shared, which in turn reaches
+# libc/src/__support. Around 525 MB against a 2.8 GB worktree; clang, lldb,
+# mlir, flang and the rest never arrive.
+#
+# Every entry is here because cmake or a compile named the thing it could not
+# find. Trim one and the build tells you which, some minutes in.
+#
+# CIRCLE_LLVM names the checkout. The default sits beside this repository, so
+# a plain clone and a CI runner are each self-contained with nothing set;
+# point several projects at one path to share the fetch across all of them.
+CIRCLE_LLVM ?= $(abspath $(CURDIR)/../circle-llvm)
+LLVM_SPARSE  = libcxx libcxxabi libunwind runtimes cmake llvm/cmake \
+               llvm/utils third-party libc
+
+.PHONY: deps llvm-cache loaders images dist card clean $(LOADERS)
+
+# Fetched once, then left alone. The tag is immutable, so a checkout that
+# already carries the runtimes tree is finished by definition.
+llvm-cache:
+	@[ -f $(CIRCLE_LLVM)/runtimes/CMakeLists.txt ] || { \
+	  echo "== llvm-project $(LLVM_TAG) -> $(CIRCLE_LLVM) (once) =="; \
+	  rm -rf $(CIRCLE_LLVM) && \
+	  git clone --quiet --depth 1 --branch $(LLVM_TAG) --no-checkout --sparse \
+	    $(LLVM_REPO) $(CIRCLE_LLVM) && \
+	  git -C $(CIRCLE_LLVM) sparse-checkout set --cone $(LLVM_SPARSE) && \
+	  git -C $(CIRCLE_LLVM) checkout --quiet; }
 
 # One single-core world per board. They differ ONLY in RASPPI (configure -r),
 # derived from the board token (rpi4 -> 4). NONE define ARM_ALLOW_MULTI_CORE:
@@ -74,14 +106,14 @@ LLVM_TAG  = circle-stdlib-22.1.3-v2
 # PATH resolution finds a modern bash when installed. MAKEINFO=true: newlib
 # insists on building its manuals otherwise, which fails without texinfo -- the
 # manuals aren't the product.
-deps:
-	@for b in $(BOARDS); do \
+deps: llvm-cache
+	@set -e; for b in $(BOARDS); do \
 	  r=$${b#rpi}; w=circle-stdlib-$$b; \
 	  echo "== $$w (RASPPI=$$r) =="; \
 	  git submodule update --init --recursive $$w; \
 	  [ -f $$w/libs/llvm-project/runtimes/CMakeLists.txt ] || \
-	    git clone --depth 1 --branch $(LLVM_TAG) $(LLVM_REPO) $$w/libs/llvm-project; \
-	  o=""; [ $$b = rpi5 ] && o="-o DEPTH=32"; \
+	    ln -sfn $(CIRCLE_LLVM) $$w/libs/llvm-project; \
+	  if [ $$b = rpi5 ]; then o="-o DEPTH=32"; else o=""; fi; \
 	  ( cd $$w && bash ./configure -r $$r -p aarch64-none-elf- \
 	      --libcxx-repo --kernel-max-size 256 $$o && $(MAKE) MAKEINFO=true ); \
 	done
