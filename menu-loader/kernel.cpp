@@ -8,6 +8,7 @@
 #include "bootimage.h"
 #include "stagealloc.h"
 #include "rapi_chainboot.h"
+#include "buildstamp.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/string.h>
@@ -92,7 +93,7 @@ boolean CKernel::Initialize (void)
 		// before Run() is ever reached, and the build identity is the
 		// first thing worth knowing when reading back a crash.
 		m_Logger.Write (FromKernel, LogNotice,
-				"rapi-bootloader boot picker — compile time: " __DATE__ " " __TIME__);
+				"rapi-bootloader boot picker — build time: %s", RapiBuildStamp);
 	}
 
 	if (bOK)

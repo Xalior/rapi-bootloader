@@ -24,6 +24,7 @@
 #include "eeeprobe.h"
 #include "netconfig.h"
 #include "rapi_chainboot.h"
+#include "buildstamp.h"
 #include <circle/chainboot.h>
 #include <circle/logger.h>
 #include <circle/sysconfig.h>
@@ -96,7 +97,7 @@ boolean CKernel::Initialize (void)
 		// before Run() is ever reached, and the build identity is the
 		// first thing worth knowing when reading back a crash.
 		m_Logger.Write (FromKernel, LogNotice,
-				"pi-mame chainloader -- compile time: " __DATE__ " " __TIME__);
+				"pi-mame chainloader -- build time: %s", RapiBuildStamp);
 
 		// The requested geometry (cmdline.txt width=/height=) vs what the
 		// firmware actually allocated: on boards whose firmware ignores

@@ -3,7 +3,7 @@
 #
 # A loader in this project is a RIDER: it decides where a payload kernel
 # comes from and which defaults-string goes into it. Everything below that
-# decision is shared, and there are exactly two shared parts:
+# decision is shared:
 #
 #   defaultsblock/  the 0x800 defaults-block ABI — the writer that patches
 #                   a defaults-string into a staged image, the magic,
@@ -13,6 +13,11 @@
 #   chainboot/      the chain-boot itself — staging a payload somewhere it
 #                   can be received and copied from (StageAlloc), and the
 #                   hand-off that replaces the running loader with it.
+#   buildstamp/     the build time a rider's banner prints. Its own object
+#                   on purpose: a __DATE__ inside an ordinary source only
+#                   updates when that source recompiles, so a relink that
+#                   reused the object banners an old time for a new image.
+#                   See the dependency line every rider adds, below.
 #
 # A rider includes this file and gets both, correctly built for its board.
 # It costs one line, and it is the point: a rider that wires the commons by
@@ -27,6 +32,14 @@
 #   include $(ROOT)/mk/commons.mk
 #   OBJS = main.o kernel.o ... $(COMMON_OBJS)
 #
+# and, AFTER its include of Circle's Rules.mk (so the default goal is
+# already chosen), the one line that makes the build stamp honest:
+#
+#   buildstamp.o: $(filter-out buildstamp.o,$(OBJS)) $(LIBS)
+#
+# It cannot live here: prerequisite lists expand when make reads them, and
+# this file is read before the rider has defined OBJS or LIBS.
+#
 # ROOT must point at the rapi-bootloader top level (riders already set it).
 #
 # This file deliberately defines NO rules. Circle's Rules.mk supplies the
@@ -37,20 +50,21 @@
 # build would quietly make one common object, skip the image, and exit 0.
 #
 
-DEFAULTSDIR  = $(ROOT)/defaultsblock
-CHAINBOOTDIR = $(ROOT)/chainboot
+DEFAULTSDIR   = $(ROOT)/defaultsblock
+CHAINBOOTDIR  = $(ROOT)/chainboot
+BUILDSTAMPDIR = $(ROOT)/buildstamp
 
 # Where the commons' sources are found, for Circle's pattern rule.
-vpath %.cpp $(DEFAULTSDIR) $(CHAINBOOTDIR)
+vpath %.cpp $(DEFAULTSDIR) $(CHAINBOOTDIR) $(BUILDSTAMPDIR)
 
-# Riders include "defaultsblock.h", "stagealloc.h" and "rapi_chainboot.h"
-# by plain name; EXTRAINCLUDE resolves them for the commons' own objects
-# and for the rider's.
-EXTRAINCLUDE += -I$(DEFAULTSDIR) -I$(CHAINBOOTDIR)
+# Riders include "defaultsblock.h", "stagealloc.h", "rapi_chainboot.h" and
+# "buildstamp.h" by plain name; EXTRAINCLUDE resolves them for the commons'
+# own objects and for the rider's.
+EXTRAINCLUDE += -I$(DEFAULTSDIR) -I$(CHAINBOOTDIR) -I$(BUILDSTAMPDIR)
 
 # Every rider links all of these. rapi_chainboot.o defines Circle's three
 # chain-boot symbols on the Pi 5 only, which keeps libcircle's chainboot.o
 # out of that link (an archive member is pulled only for an otherwise
 # undefined symbol); on the Pi 3 and Pi 4 it defines none of them and
 # Circle's own implementation is what runs.
-COMMON_OBJS = defaultsblock.o bootimage.o stagealloc.o rapi_chainboot.o
+COMMON_OBJS = defaultsblock.o bootimage.o stagealloc.o rapi_chainboot.o buildstamp.o

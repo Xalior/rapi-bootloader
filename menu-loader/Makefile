@@ -62,6 +62,10 @@ endif
 # building out-of-tree (both are '.' for an in-place build).
 INCLUDE := -I. -I$(SRCDIR) $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
 
+# The build stamp recompiles whenever anything else in the link changed, so
+# the banner's time is the image's, not one object's (see buildstamp/).
+buildstamp.o: $(filter-out buildstamp.o,$(OBJS)) $(LIBS)
+
 -include $(DEPS)
 
 # Boot-world link rule: TLS-adjacent linker script (binutils 2.44+ refuses a

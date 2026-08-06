@@ -88,6 +88,10 @@ INCLUDE := -I. -I$(SRCDIR) $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE)
 
 httpbootserver.o: $(CONTENT)
 
+# The build stamp recompiles whenever anything else in the link changed, so
+# the banner's time is the image's, not one object's (see buildstamp/).
+buildstamp.o: $(filter-out buildstamp.o,$(OBJS)) $(LIBS)
+
 -include $(DEPS)
 
 # pi-mame link rule: TLS-adjacent linker script (binutils 2.44+ refuses a
