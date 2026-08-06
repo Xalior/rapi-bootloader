@@ -209,6 +209,21 @@ static void CaptureDTB (void)
 static void RapiChainBootStub (const void *pKernelImage, size_t nKernelSize) MAXOPT;
 static void RapiChainBootStub (const void *pKernelImage, size_t nKernelSize)
 {
+	// Evict the first gigabyte from the system cache BEFORE the copy
+	// (see header, 3.): set/way maintenance does not reach it, so at this
+	// moment it holds — dirty — everything the loader wrote low, freshly
+	// pushed out of the architected caches by DoChainBoot()'s set/way
+	// clean. The copy below writes DRAM directly, past the system cache;
+	// a dirty line swept AFTER the copy is written back over the fresh
+	// image, punching stale 64-byte loader-era holes into the payload.
+	// Swept first, the lines are gone and DRAM stays authoritative. The
+	// payload's fixed regions and low heap all live in this gigabyte.
+	for (uintptr nAddr = MEM_KERNEL_START; nAddr < GIGABYTE; nAddr += 64)
+	{
+		asm volatile ("dc civac, %0" : : "r" (nAddr) : "memory");
+	}
+	DataSyncBarrier ();
+
 	const u32 *pSrc = (const u32 *) pKernelImage;
 	u32 *pDest = (u32 *) MEM_KERNEL_START;
 
@@ -219,9 +234,14 @@ static void RapiChainBootStub (const void *pKernelImage, size_t nKernelSize)
 	{
 		*pDest++ = *pSrc++;
 	}
+	DataSyncBarrier ();
 
-	// Evict the first gigabyte from the system cache (see header, 3.):
-	// the payload's fixed regions and low heap all live here.
+	// And once more AFTER the copy: the stub's own run refills a little of
+	// what the first sweep emptied — its instruction fetches, the source
+	// reads — and a stale line surviving here, clean or dirty, is read by
+	// a payload that has no caches of its own up yet to be coherent with.
+	// If the copy's stores did land in the system cache rather than DRAM,
+	// this is also what carries them home. Tens of milliseconds, once.
 	for (uintptr nAddr = MEM_KERNEL_START; nAddr < GIGABYTE; nAddr += 64)
 	{
 		asm volatile ("dc civac, %0" : : "r" (nAddr) : "memory");
