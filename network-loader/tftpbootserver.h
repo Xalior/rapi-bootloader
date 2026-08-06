@@ -63,6 +63,7 @@ private:
 	// buffer; consumed by UpdateStatus() — armed on completion, discarded
 	// on abort/timeout.
 	boolean m_bKernelClosed;
+	u32 m_nKernelHash;			// FNV-1a, accumulated per block
 
 	// The pending defaults-string injection (dev tooling): an "inject" push
 	// fills this and arms m_bInjectPending; the very next kernel push patches

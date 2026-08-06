@@ -39,6 +39,7 @@ CTFTPBootServer::CTFTPBootServer (CNetSubSystem *pNetSubSystem, size_t nMaxKerne
 	m_Mode (ModeNone),
 	m_pKernelBuffer (0),
 	m_bKernelClosed (FALSE),
+	m_nKernelHash (2166136261U),
 	m_bInjectPending (FALSE),
 	m_nInjectFill (0),
 	m_pWriteBuf (0),
@@ -189,6 +190,7 @@ boolean CTFTPBootServer::FileCreate (const char *pFileName)
 	}
 
 	m_nCurrentOffset = 0;
+	m_nKernelHash = 2166136261U;		// FNV-1a offset basis
 	m_Mode = ModeKernel;
 
 	return TRUE;
@@ -201,6 +203,10 @@ boolean CTFTPBootServer::FileClose (void)
 	case ModeKernel:
 		CLogger::Get ()->Write (FromBootServer, LogDebug,
 					"%u bytes received", m_nCurrentOffset);
+		CLogger::Get ()->Write (FromBootServer, LogNotice,
+					"image fnv1a %08X over %u bytes",
+					(unsigned) m_nKernelHash,
+					(unsigned) m_nCurrentOffset);
 		// Whether these bytes are a complete payload is not knowable
 		// here: the daemon calls FileClose() for completed, timed-out
 		// and aborted transfers alike. Hand the verdict to
@@ -324,6 +330,32 @@ int CTFTPBootServer::FileWrite (const void *pBuffer, unsigned nCount)
 
 		assert (pBuffer != 0);
 		memcpy (m_pKernelBuffer + m_nCurrentOffset, pBuffer, nCount);
+
+		// Hashed HERE, one block at a time, and never in the completion
+		// callback. TFTP rides UDP, so an image of the right length and
+		// the wrong content is possible and would be indistinguishable
+		// from a payload that simply does not run; the host can compute
+		// the same value over the file it pushed.
+		//
+		// A single pass over the whole buffer at completion looks
+		// cheaper to write and is not: it is a synchronous burst of a
+		// million iterations inside a task callback, with no Yield, at
+		// the exact moment the loader is about to quiesce xHCI. That
+		// starved the USB pump and left one of the controller's two
+		// shared-memory blocks unfreed at teardown. Per block, the cost
+		// is a few thousand iterations between packets and nothing is
+		// starved.
+		{
+			const u8 *p = (const u8 *) pBuffer;
+			u32 nHash = m_nKernelHash;
+			for (unsigned i = 0; i < nCount; i++)
+			{
+				nHash ^= p[i];
+				nHash *= 16777619U;
+			}
+			m_nKernelHash = nHash;
+		}
+
 		m_nCurrentOffset += nCount;
 
 		return nCount;
