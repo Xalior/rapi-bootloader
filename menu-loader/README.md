@@ -56,3 +56,11 @@ fixed, unattended chain-boot of one baked entry.
 | PgUp / PgDn   | page through a long list |
 | `1`–`9`       | jump to that entry |
 | Enter         | boot the selected entry |
+
+## Keyboard layout
+
+The menu-loader reads keyboard input, so the keyboard layout must be correct for the keys to work as expected. The SD card's `cmdline.txt` sets the layout that Circle (the framework the loader is built on) uses. It defaults to US, but can be set to match your own keyboard:
+
+    keymap=uk
+
+Available layouts: `us` (default), `uk`, `de`, `es`, `fr`, `it`, `dv` (Dvorak). If your keyboard layout is not US, add the `keymap=` line to `cmdline.txt` before booting — otherwise the arrow keys and number keys may produce unexpected characters and the menu becomes hard to navigate.

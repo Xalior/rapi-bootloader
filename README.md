@@ -200,6 +200,14 @@ circle-stdlib-rpi{3,4,5}/  submodules: one single-core C/C++ runtime world
 dist/            collected per-board loader images (make dist)
 ```
 
+## Keyboard layout
+
+The menu-loader reads keyboard input to take a choice from the boot menu, so the keyboard layout must be configured correctly. The SD card's `cmdline.txt` carries this setting, which Circle reads at boot. It defaults to US; to match a different keyboard, add `keymap=` to the line:
+
+    keymap=uk
+
+Valid values are: `us` (default), `uk`, `de`, `es`, `fr`, `it`, `dv` (Dvorak). Without the correct layout, arrow keys and number keys produce the wrong characters and the boot menu becomes hard to navigate. See [`menu-loader/README.md`](menu-loader/README.md#keyboard-layout) for details.
+
 `mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
 in that `.tbss` directly follows `.tdata` — binutils 2.44+ refuses to map a
 `PT_TLS` segment from non-adjacent TLS sections, which libc++/libunwind
