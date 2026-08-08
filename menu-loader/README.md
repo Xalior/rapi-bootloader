@@ -59,8 +59,17 @@ fixed, unattended chain-boot of one baked entry.
 
 ## Keyboard layout
 
-The menu-loader reads keyboard input, so the keyboard layout must be correct for the keys to work as expected. The SD card's `cmdline.txt` sets the layout that Circle (the framework the loader is built on) uses. It defaults to US, but can be set to match your own keyboard:
+The menu reads the keyboard as raw HID usage codes, not as characters, so it is
+unaffected by the keyboard layout. The cursor keys, the digits, Enter and the
+paging keys carry the same codes on every layout, and the menu behaves
+identically whatever the card says.
+
+The card's `cmdline.txt` still carries a layout, because the payload booted from
+the menu may want one:
 
     keymap=uk
 
-Available layouts: `us` (default), `uk`, `de`, `es`, `fr`, `it`, `dv` (Dvorak). If your keyboard layout is not US, add the `keymap=` line to `cmdline.txt` before booting — otherwise the arrow keys and number keys may produce unexpected characters and the menu becomes hard to navigate.
+Valid values are `us` (the default), `uk`, `de`, `es`, `fr`, `it` and `dv`
+(Dvorak). It matters to anything that reads typed characters rather than named
+keys; on the wrong layout the letters and digits are still right and the
+punctuation is not.

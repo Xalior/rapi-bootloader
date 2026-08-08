@@ -202,11 +202,23 @@ dist/            collected per-board loader images (make dist)
 
 ## Keyboard layout
 
-The menu-loader reads keyboard input to take a choice from the boot menu, so the keyboard layout must be configured correctly. The SD card's `cmdline.txt` carries this setting, which Circle reads at boot. It defaults to US; to match a different keyboard, add `keymap=` to the line:
+The SD card's `cmdline.txt` carries the keyboard layout, which Circle reads at
+boot. It defaults to US; to match a different keyboard, add `keymap=` to the
+line:
 
     keymap=uk
 
-Valid values are: `us` (default), `uk`, `de`, `es`, `fr`, `it`, `dv` (Dvorak). Without the correct layout, arrow keys and number keys produce the wrong characters and the boot menu becomes hard to navigate. See [`menu-loader/README.md`](menu-loader/README.md#keyboard-layout) for details.
+Valid values are `us`, `uk`, `de`, `es`, `fr`, `it` and `dv` (Dvorak).
+
+**The loaders themselves do not use it.** The menu-loader reads the keyboard as
+raw HID usage codes — the cursor keys, the digits, Enter and the paging keys
+carry the same codes on every layout, so its menu works the same whatever is
+set here. The setting is for the payload that gets booted: anything that reads
+typed characters, rather than named keys, gets them through this layout. On the
+wrong one, the letters and digits are still right and the punctuation is not.
+
+It is set here rather than by the payload because `cmdline.txt` belongs to the
+card, and one card can boot several payloads.
 
 `mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
 in that `.tbss` directly follows `.tdata` — binutils 2.44+ refuses to map a
