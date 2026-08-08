@@ -67,9 +67,6 @@ identically whatever the card says.
 The card's `cmdline.txt` still carries a layout, because the payload booted from
 the menu may want one:
 
-    keymap=uk
+    keymap=UK
 
-Valid values are `us` (the default), `uk`, `de`, `es`, `fr`, `it` and `dv`
-(Dvorak). It matters to anything that reads typed characters rather than named
-keys; on the wrong layout the letters and digits are still right and the
-punctuation is not.
+Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). A missing or unrecognised name falls back to German. Names are case-sensitive; a name in the wrong case matches nothing and the system falls back to German instead. It matters to anything that reads typed characters rather than named keys; on the wrong layout the letters and digits are still right and the punctuation is not.

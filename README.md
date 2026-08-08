@@ -203,12 +203,12 @@ dist/            collected per-board loader images (make dist)
 ## Keyboard layout
 
 The SD card's `cmdline.txt` carries the keyboard layout, which Circle reads at
-boot. It defaults to US; to match a different keyboard, add `keymap=` to the
+boot. A missing or unrecognised name falls back to German; to match a different keyboard, add `keymap=` to the
 line:
 
-    keymap=uk
+    keymap=UK
 
-Valid values are `us`, `uk`, `de`, `es`, `fr`, `it` and `dv` (Dvorak).
+Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). Names are case-sensitive; a name in the wrong case matches nothing and the system falls back to German instead.
 
 **The loaders themselves do not use it.** The menu-loader reads the keyboard as
 raw HID usage codes — the cursor keys, the digits, Enter and the paging keys
