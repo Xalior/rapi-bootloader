@@ -210,6 +210,17 @@ void CKernel::ConfigureNetwork (void)
 		m_Net.GetConfig ()->SetDefaultGateway (Config.Gateway);
 	}
 
+	// The loader looks up no names of its own, so this changes nothing it
+	// does. It is set because the section is one definition and whatever
+	// boots next reads the same file: a payload that names its time server
+	// by host name has to get the resolver from somewhere, and on a static
+	// address the card is the only place there is. Circle's DHCP client
+	// fills this in from the lease; nothing fills it in when the address
+	// was written by hand.
+	if (Config.bHaveDNSServer)
+	{
+		m_Net.GetConfig ()->SetDNSServer (Config.DNSServer);
+	}
 }
 
 void CKernel::WaitForNetwork (void)

@@ -109,6 +109,7 @@ void RapiReadNetConfig (TRapiNetConfig *pConfig)
 {
 	pConfig->bStatic = FALSE;
 	pConfig->bHaveGateway = FALSE;
+	pConfig->bHaveDNSServer = FALSE;
 
 	// A netmask is optional; this is the one every address a home or office
 	// network hands out uses, and stating it is still allowed.
@@ -226,6 +227,18 @@ void RapiReadNetConfig (TRapiNetConfig *pConfig)
 			{
 				CLogger::Get ()->Write (FromNetConfig, LogWarning,
 							"gateway is not an address -- ignored");
+			}
+		}
+		else if (MatchToken (pLine, pEquals, "dnsserver"))
+		{
+			if (ParseAddress (pValue, pLineEnd, pConfig->DNSServer))
+			{
+				pConfig->bHaveDNSServer = TRUE;
+			}
+			else
+			{
+				CLogger::Get ()->Write (FromNetConfig, LogWarning,
+							"dnsserver is not an address -- ignored");
 			}
 		}
 	}

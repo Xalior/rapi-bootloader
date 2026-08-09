@@ -32,6 +32,14 @@ struct TRapiNetConfig
 	// none. FALSE leaves it unset.
 	boolean	bHaveGateway;
 	u8	Gateway[4];
+
+	// A resolver is optional in the same way. A static address is the one
+	// case where nothing supplies one: Circle's DHCP client fills the
+	// resolver in along with the address, and a configuration written by
+	// hand has only what the card states. FALSE leaves it unset, and
+	// anything that then looks a name up has nowhere to ask.
+	boolean	bHaveDNSServer;
+	u8	DNSServer[4];
 };
 
 // Read the [rapi-bootloader] section of SD:/config.txt into *pConfig. The

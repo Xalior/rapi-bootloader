@@ -84,7 +84,7 @@ framebuffer_ignore_alpha=1
 # --- network-loader settings ---
 #
 # This example gives the loader a fixed address. To use it, copy this file to
-# your card as config.txt and change the three values below to suit your own
+# your card as config.txt and change the values below to suit your own
 # network.
 #
 # The Raspberry Pi firmware skips any section whose name it does not
@@ -96,8 +96,18 @@ framebuffer_ignore_alpha=1
 #   ipaddress   the address the loader takes    (required for a fixed address)
 #   netmask     defaults to 255.255.255.0 if not stated
 #   gateway     optional; only needed to reach the loader from another network
+#   dnsserver   optional; the resolver a host name is looked up at
 #
-# The loader resolves no names, so it needs no DNS server.
+# A FIXED ADDRESS IS CONFIGURED BY HAND, AND SO IS ITS RESOLVER. DHCP hands
+# out a resolver along with the address; a configuration written on the card
+# has only what the card states. Name a dnsserver and anything booting from
+# this section can use host names; name none and it uses addresses. Both are
+# ordinary. On most home and office networks the resolver is the same machine
+# as the gateway, which is why the two lines below are the same address.
+#
+# The loader itself looks up no names, so this changes nothing the loader
+# does. The payload it chain-boots reads the same file -- a payload asking a
+# time server for the clock by name is the case that needs it.
 #
 # For DHCP instead, delete this whole section, or just the ipaddress line: with
 # no address stated the loader asks the network for one and reports what it was
@@ -107,3 +117,4 @@ framebuffer_ignore_alpha=1
 ipaddress=192.168.1.50
 netmask=255.255.255.0
 gateway=192.168.1.1
+dnsserver=192.168.1.1

@@ -27,6 +27,7 @@ section of `config.txt`:
     ipaddress=192.168.1.50
     netmask=255.255.255.0
     gateway=192.168.1.1
+    dnsserver=192.168.1.1
 
 State an address there and the loader uses it. State none, or leave the
 section out, and the loader asks DHCP for one and reports what it was given on
@@ -41,7 +42,21 @@ after this one would be skipped along with it.
 
 Only `ipaddress` is required for a static address. `netmask` defaults to
 255.255.255.0. A `gateway` is needed only to reach the loader from a different
-network segment. The loader resolves no names, so it needs no DNS server.
+network segment.
+
+`dnsserver` is the resolver a name is looked up at, and it is optional in the
+same way the gateway is. **A static address is configured by hand, and so is
+its resolver**: DHCP hands out a resolver along with the address, and a
+configuration written on the card has only what the card states. Name one here
+and anything that boots from this section can use host names; name none and it
+uses addresses. Both are ordinary, and neither is a lesser version of the
+other.
+
+The loader itself looks up no names, so this setting changes nothing the
+loader does. It is here because the section is one definition of what a card
+says about the network, and the payload the loader chain-boots reads the same
+file — a payload asking a time server for the clock by name is the case that
+needs it.
 
 If no address is configured and no DHCP server answers, the loader keeps
 asking and says so; there is nothing else for it to do until it has an
