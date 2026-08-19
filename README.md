@@ -1,27 +1,29 @@
 # rapi-bootloader
 
-A single-core boot building block for bare-metal Raspberry Pi payloads built
-on the [Circle](https://github.com/rsta2/circle) framework. These are small
-argv-loaders that stamp a plain-text argument string into a kernel image at a
-fixed offset and chain-boot it:
+rapi-bootloader is a pair of single-core boot loaders for bare-metal
+Raspberry Pi payloads, built on the
+[Circle](https://github.com/rsta2/circle) framework. Both stamp a
+plain-text argument string into a kernel image at a fixed offset, then
+chain-boot it:
 
-- **network-loader** is a development chain-loader. It takes its address from
-  a `[rapi-bootloader]` section of the card's `config.txt`, or asks DHCP when
-  that section states none; serves TFTP, HTTP (port 8080) and WebDAV
-  (port 8081); receives a kernel image over the wire into a high-heap staging
-  buffer, optionally stamps an argv defaults-string into it, and chain-boots
-  it. Iteration without rewriting the card: push a new image, it runs in RAM.
-  `card/config.txt.example` is a card configuration with the section filled
-  in. See [`network-loader/README.md`](network-loader/README.md).
+- **network-loader** is a development chain-loader. It takes its address
+  from a `[rapi-bootloader]` section of the card's `config.txt`, or asks
+  DHCP when the section states none. It serves TFTP, HTTP (port 8080) and
+  WebDAV (port 8081). It receives a kernel image over the network into a
+  staging buffer, stamps an optional argv defaults-string into it, and
+  chain-boots it. Push a new image and it runs in RAM, so nothing rewrites
+  the SD card between iterations. `card/config.txt.example` is a card
+  configuration with the section already filled in. See
+  [`network-loader/README.md`](network-loader/README.md).
 - **menu-loader** is an on-card boot picker. It reads a `bootmenu.cfg` list
-  from the SD card, presents it on screen, takes a keyboard selection,
-  stamps the chosen defaults-string into a staged platform kernel image, and
+  from the SD card and shows it on screen. It takes a keyboard selection,
+  stamps the chosen defaults-string into a staged kernel image, and
   chain-boots it. See [`menu-loader/README.md`](menu-loader/README.md).
 
-Both are **single-core** by design, so the C/C++ runtime world they link is
-configured without `ARM_ALLOW_MULTI_CORE`. Circle's `EnableChainBoot()`
-refuses a multicore build, and the Raspberry Pi 5 replacement described below
-keeps the same restriction.
+Both loaders are single-core by design. Circle's `EnableChainBoot()` refuses
+a multicore build, so the C/C++ runtime world each links is configured
+without `ARM_ALLOW_MULTI_CORE`. The Raspberry Pi 5 replacement described
+below keeps the same restriction.
 
 ## Where this comes from
 
@@ -40,10 +42,10 @@ rapi-bootloader is that accumulation, dug out, cleaned up, and put somewhere
 public. It gives the pieces one home and the argument-passing ABI a single
 owner, so that the next project can depend on them rather than write them
 again. Nothing here is specific to the payload that finally prompted the
-collection: any Circle kernel carrying the 0x800 block can be pushed, stamped
-and booted by these loaders, and any Circle kernel WITHOUT one can be booted
-too, unstamped. The block is an optional ABI, so a loader here boots a plain
-Circle kernel as readily as an argv-taking one.
+collection. Any Circle kernel carrying the 0x800 block can be pushed,
+stamped and booted by these loaders; any Circle kernel without one boots
+too, just unstamped. The block is an optional ABI, so a loader here boots a
+plain Circle kernel as readily as an argv-taking one.
 
 ## The 0x800 defaults-block ABI
 
@@ -58,21 +60,21 @@ image offset **0x800**:
 | `Length`   | 0x06 | `u16`, bytes used in `Text[]` (excludes the NUL) |
 | `Text[]`   | 0x08 | NUL-terminated plain-text argv string (starts at 0x808) |
 
-`PatchDefaults()` verifies the magic first and refuses the write if it is
-absent (a re-ordered link script becomes a refused write, never argv text
-stamped over startup code) and enforces the string length against the
-block's own `Capacity` field. The refusal is of the WRITE only: an image
-with no block still boots, unstamped. Loaders do not decide this for
-themselves. `BootImageWithDefaults()` in `defaultsblock/` stamps where it
-can and chain-boots either way, so every loader answers the question the same
-way and a new one inherits the answer. The consuming kernel tokenises `Text[]`
-and appends it to its own argv.
+`PatchDefaults()` checks the magic first and refuses the write if it is
+absent, so a re-ordered link script produces a refused write rather than
+argv text stamped over startup code. It also enforces the string length
+against the block's own `Capacity` field. The refusal applies to the write
+only. An image with no block still boots, unstamped, because no loader
+decides that for itself. `BootImageWithDefaults()` in `defaultsblock/`
+stamps where it can and chain-boots either way, so every loader answers the
+question the same way, and a new loader inherits the answer. The consuming
+kernel tokenises `Text[]` and appends it to its own argv.
 
 The struct is `PACKED` and little-endian (matching AArch64), so its `sizeof`
 is `4 + 2 + 2 + Capacity`. An image must be at least `0x800 + sizeof` bytes
 long before any writer may dereference the block. AArch64 kernels load at
-`MEM_KERNEL_START` (`0x80000`), so the block's runtime address is `0x80800`;
-the image's first instruction is a `b` trampoline over the reserved boot
+`MEM_KERNEL_START` (`0x80000`), so the block's runtime address is `0x80800`.
+The image's first instruction is a `b` trampoline over the reserved boot
 furniture, which is what lets the block occupy fixed space near the head of
 the image without displacing Circle's startup contract.
 
@@ -134,16 +136,17 @@ if __name__ == "__main__":
 python3 patch.py kernel8-rpi4.img 'c64 -iec8 ""'
 ```
 
-An empty string clears the block: the consuming kernel then appends nothing and
-boots its own default behaviour, so "unpatched" is not a special case.
+Writing an empty string clears the block. The consuming kernel then appends
+nothing and boots its own default behaviour, so a patched-but-empty image
+behaves exactly like an unpatched one.
 
 ## The shared parts
 
-A loader in this repository decides: where a payload kernel comes
-from, and which argument string goes into it. The network-loader receives the
-payload over the network; the menu-loader reads it from the SD card and asks a
-person to choose. Everything below that decision is identical, and lives in
-directories that every loader uses:
+Each loader in this repository makes two decisions: where a payload kernel
+comes from, and what argument string goes into it. The network-loader
+receives the payload over the network. The menu-loader reads it from the SD
+card and asks a person to choose. Below that decision, everything is
+identical, and lives in directories every loader uses:
 
 - `defaultsblock/` is the 0x800 argument-block writer described above.
 - `chainboot/` places a payload in memory where it can be received and
@@ -152,9 +155,9 @@ directories that every loader uses:
   relink that reuses other objects still reports the build it rides in.
 
 A loader gets all three by including `mk/commons.mk` in its makefile and
-adding `$(COMMON_OBJS)` to its object list. This is one line rather than a
-copied set of build rules, because a loader that wires the shared parts by
-hand can miss one without the build failing.
+adding `$(COMMON_OBJS)` to its object list, one line instead of a copied set
+of build rules. A loader that wires the shared parts by hand can miss one
+without the build failing to say so.
 
 ### Chain-boot on the Raspberry Pi 5
 
@@ -163,29 +166,29 @@ what those builds use. On the Pi 5 it cannot work, for separate
 reasons:
 
 1. Circle switches the data cache off and then runs compiled C++ that uses
-   the stack. The Pi 5's Cortex-A76 core does not tolerate that order; the
+   the stack. The Pi 5's Cortex-A76 core does not tolerate that order. The
    Pi 4's Cortex-A72 does.
 2. Circle places its copy routine at address `0x7FC00`. On the Pi 5 that
    address is inside Trusted Firmware, which occupies `0x1000` to `0x80000`
    and stays in memory to start the payload's other CPU cores.
 3. The Pi 5 has a memory-side system cache that set/way cache maintenance
-   does not reach. Anything the loader leaves in it is stale data for a
-   payload that writes its early state with the memory management unit off
-   and reads it back with the unit on. Maintenance by virtual address is
-   honoured, and is what the replacement uses.
+   cannot reach. A payload writes its early state with the memory
+   management unit off, then reads it back with the unit on, so anything
+   the loader left behind in that cache reads back stale. Maintenance by
+   virtual address does reach it, and that is what the replacement uses.
 
 `chainboot/rapi_chainboot.cpp` addresses all of them by defining Circle's
 chain-boot functions itself on Pi 5 builds. A library member is only linked
 when it resolves a symbol nothing else defines, so defining them here keeps
 Circle's version out of the build entirely. On the Pi 3 and Pi 4 the file
-defines none of them and Circle's version is linked as usual. The Circle tree
-itself is never modified.
+defines none of them, so the build links Circle's own version as usual. The
+Circle tree itself is never modified.
 
 The one thing a loader must do is call `RapiChainBootMainReturning()` from
 `CKernel::Run()`, immediately before it returns `ShutdownReboot`. On the
-Pi 5 this marks the point after which the hand-off is safe to perform; on the
-other boards it does nothing, so a loader calls it without testing which
-board it is built for.
+Pi 5 this marks the point after which the hand-off is safe. On the other
+boards it does nothing, so a loader calls it without testing which board it
+is built for.
 
 ## Layout
 
@@ -204,10 +207,11 @@ card/            the multi-board network-loader SD card source (make card)
 dist/            collected per-board loader images (make dist)
 ```
 
-`mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
-in that `.tbss` directly follows `.tdata`: binutils 2.44+ refuses to map a
-`PT_TLS` segment from non-adjacent TLS sections, which libc++/libunwind
-carry. The Circle tree itself is never modified.
+`mk/ld/circle-tls.ld` is derived from Circle's `circle.ld`. The only
+difference is that `.tbss` follows `.tdata` directly, because binutils
+2.44+ refuses to map a `PT_TLS` segment from non-adjacent TLS sections,
+which is the layout libc++ and libunwind need. The Circle tree itself is
+never modified.
 
 ## Keyboard layout
 
@@ -218,16 +222,16 @@ different keyboard, add `keymap=` to the line:
     keymap=UK
 
 Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). Names
-are case-sensitive; a name in the wrong case matches nothing and the system
-falls back to German instead.
+are case-sensitive. A name in the wrong case matches nothing, and the
+system falls back to German instead.
 
 **The loaders themselves do not use it.** The menu-loader reads the keyboard
 as raw HID usage codes. The cursor keys, the digits, Enter and the paging
 keys carry the same codes on every layout, so its menu works the same
-whatever is set here. The setting is for the payload that gets booted:
-anything that reads typed characters, rather than named keys, gets them
-through this layout. On the wrong one, the letters and digits are still
-right and the punctuation is not.
+whatever is set here. The setting is for the payload that gets booted, not
+for the loader. Anything that reads typed characters, rather than named
+keys, gets them through this layout. On the wrong one, the letters and
+digits are still right and the punctuation is not.
 
 It is set here rather than by the payload because `cmdline.txt` belongs to
 the card, and one card can boot several payloads.
@@ -254,21 +258,22 @@ make -j loaders           # every loader x every board, concurrently -> dist/
 make network-loader-rpi4  # just the Pi 4 chain-loader, in its own build tree
 ```
 
-`make deps` initialises the `circle-stdlib-rpi{3,4,5}` world submodules
-(each pinned to the project's tested commit), clones the immutable-tagged
-LLVM/libc++ checkout each builds libc++ from, then configures every world
-**single-core** (`-r <board> -p aarch64-none-elf- --libcxx-repo
+`make deps` initialises the `circle-stdlib-rpi{3,4,5}` world submodules,
+each pinned to the project's tested commit. It clones the immutable-tagged
+LLVM/libc++ checkout each world builds libc++ from. Then it configures
+every world **single-core** (`-r <board> -p aarch64-none-elf- --libcxx-repo
 --kernel-max-size 255`) and builds it.
 
-`make -j loaders` builds each (loader, board) in its own out-of-tree
-directory `<loader>/build/<board>/`, with isolated objects and a
+`make -j loaders` builds each (loader, board) pair in its own out-of-tree
+directory, `<loader>/build/<board>/`, with isolated objects and a
 distinctly-named image (`kernel8.img` / `kernel8-rpi4.img` /
-`kernel_2712.img`), so all combos build concurrently with zero collision. It
-then collects the images into `dist/<loader>/`. Every supported board maps
-onto one of these worlds (Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4,
-Pi 5 + CM5 → rpi5); the board→image routing lives in the card's
-`config.txt`. This per-board, concurrent-tree methodology is the one the
-pi-mame split reuses to dispatch concurrent CI build targets.
+`kernel_2712.img`). That isolation is what lets every combination build
+concurrently with zero collision. It then collects the images into
+`dist/<loader>/`. Every supported board maps onto one of these worlds:
+Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4, Pi 5 + CM5 → rpi5. The
+board-to-image routing lives in the card's `config.txt`. The pi-mame split
+reuses this per-board, concurrent-tree layout to dispatch its own
+concurrent CI build targets.
 
 ## Licence
 
