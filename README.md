@@ -1,19 +1,19 @@
 # rapi-bootloader
 
-A single-core boot building block for bare-metal Raspberry Pi 4 payloads
-built on the [Circle](https://github.com/rsta2/circle) framework. These are
-small argv-loaders that stamp a plain-text argument string into a kernel
-image at a fixed offset and chain-boot it:
+A single-core boot building block for bare-metal Raspberry Pi payloads built
+on the [Circle](https://github.com/rsta2/circle) framework. These are small
+argv-loaders that stamp a plain-text argument string into a kernel image at a
+fixed offset and chain-boot it:
 
-- **network-loader** — a development chain-loader. It takes its address from a
-  `[rapi-bootloader]` section of the card's `config.txt`, or asks DHCP when
+- **network-loader** is a development chain-loader. It takes its address from
+  a `[rapi-bootloader]` section of the card's `config.txt`, or asks DHCP when
   that section states none; serves TFTP, HTTP (port 8080) and WebDAV
   (port 8081); receives a kernel image over the wire into a high-heap staging
   buffer, optionally stamps an argv defaults-string into it, and chain-boots
   it. Iteration without rewriting the card: push a new image, it runs in RAM.
   `card/config.txt.example` is a card configuration with the section filled
   in. See [`network-loader/README.md`](network-loader/README.md).
-- **menu-loader** — an on-card boot picker. It reads a `bootmenu.cfg` list
+- **menu-loader** is an on-card boot picker. It reads a `bootmenu.cfg` list
   from the SD card, presents it on screen, takes a keyboard selection,
   stamps the chosen defaults-string into a staged platform kernel image, and
   chain-boots it. See [`menu-loader/README.md`](menu-loader/README.md).
@@ -32,7 +32,7 @@ pulling the SD card out for the hundredth time; a way to hand a payload its
 arguments when there is no command line, no environment and no filesystem
 convention to read them from; a way to choose, at boot, which of several
 payloads runs. Each time, they were rebuilt inside whichever project needed
-them — and stayed there, buried, when that project ended. The boot picker's
+them, and stayed there, buried, when that project ended. The boot picker's
 design goes back to NextPi in 2018, and the ideas under it are older still.
 More than a decade of the same wheels, re-cut.
 
@@ -41,7 +41,7 @@ public. It gives the pieces one home and the argument-passing ABI a single
 owner, so that the next project can depend on them rather than write them
 again. Nothing here is specific to the payload that finally prompted the
 collection: any Circle kernel carrying the 0x800 block can be pushed, stamped
-and booted by these loaders — and any Circle kernel WITHOUT one can be booted
+and booted by these loaders, and any Circle kernel WITHOUT one can be booted
 too, unstamped. The block is an optional ABI, so a loader here boots a plain
 Circle kernel as readily as an argv-taking one.
 
@@ -53,7 +53,7 @@ image offset **0x800**:
 
 | field | offset | notes |
 |-------|--------|-------|
-| `Magic[4]` | 0x00 | `'P','M','8','D'` — a seatbelt, verified before any write |
+| `Magic[4]` | 0x00 | `'P','M','8','D'`, a seatbelt verified before any write |
 | `Capacity` | 0x04 | `u16`, bytes available in `Text[]` |
 | `Length`   | 0x06 | `u16`, bytes used in `Text[]` (excludes the NUL) |
 | `Text[]`   | 0x08 | NUL-terminated plain-text argv string (starts at 0x808) |
@@ -63,10 +63,10 @@ absent (a re-ordered link script becomes a refused write, never argv text
 stamped over startup code) and enforces the string length against the
 block's own `Capacity` field. The refusal is of the WRITE only: an image
 with no block still boots, unstamped. Loaders do not decide this for
-themselves — `BootImageWithDefaults()` in `defaultsblock/` stamps where it
+themselves. `BootImageWithDefaults()` in `defaultsblock/` stamps where it
 can and chain-boots either way, so every loader answers the question the same
-way and a new one inherits the answer. The consuming kernel tokenises `Text[]` and
-appends it to its own argv.
+way and a new one inherits the answer. The consuming kernel tokenises `Text[]`
+and appends it to its own argv.
 
 The struct is `PACKED` and little-endian (matching AArch64), so its `sizeof`
 is `4 + 2 + 2 + Capacity`. An image must be at least `0x800 + sizeof` bytes
@@ -95,9 +95,9 @@ xxd -l 8   -s 0x800 kernel8-rpi4.img     # magic + capacity + length
 xxd -l 512 -s 0x808 kernel8-rpi4.img | head -1   # the text
 ```
 
-Writing it — verify the magic, enforce the block's own `Capacity`, write
-`Text` NUL-terminated, update `Length` (excluding the NUL). That is the whole
-contract:
+Writing it means verifying the magic, enforcing the block's own `Capacity`,
+writing `Text` NUL-terminated, and updating `Length` (excluding the NUL).
+That is the whole contract:
 
 ```python
 #!/usr/bin/env python3
@@ -145,14 +145,16 @@ payload over the network; the menu-loader reads it from the SD card and asks a
 person to choose. Everything below that decision is identical, and lives in
 directories that every loader uses:
 
-- `defaultsblock/` — the 0x800 argument-block writer described above.
-- `chainboot/` — placing a payload in memory where it can be received and
-  copied from, and then replacing the running loader with it.
+- `defaultsblock/` is the 0x800 argument-block writer described above.
+- `chainboot/` places a payload in memory where it can be received and
+  copied from, then replaces the running loader with it.
+- `buildstamp/` is the image's own build time, in its own object so a
+  relink that reuses other objects still reports the build it rides in.
 
-A loader gets both by including `mk/commons.mk` in its makefile and adding
-`$(COMMON_OBJS)` to its object list. This is one line rather than a copied
-set of build rules, because a loader that wires the shared parts by hand can
-miss one without the build failing.
+A loader gets all three by including `mk/commons.mk` in its makefile and
+adding `$(COMMON_OBJS)` to its object list. This is one line rather than a
+copied set of build rules, because a loader that wires the shared parts by
+hand can miss one without the build failing.
 
 ### Chain-boot on the Raspberry Pi 5
 
@@ -191,39 +193,44 @@ board it is built for.
 defaultsblock/   the shared 0x800 ABI (writer side): PatchDefaults()
 chainboot/       the shared chain-boot: staging a payload, and replacing
                  the running loader with it (see below)
+buildstamp/      the shared build-time stamp for a rider's boot banner
 network-loader/  the TFTP/HTTP/WebDAV chain-loader  (see its README)
 menu-loader/     the on-card boot picker            (see its README)
-mk/commons.mk    one include that gives a loader both shared parts
+mk/commons.mk    one include that gives a loader all three shared parts
 mk/ld/           TLS-adjacent linker script + link rule (see below)
 circle-stdlib-rpi{3,4,5}/  submodules: one single-core C/C++ runtime world
                  per board (RASPPI 3/4/5); a loader links the selected one
+card/            the multi-board network-loader SD card source (make card)
 dist/            collected per-board loader images (make dist)
 ```
 
+`mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
+in that `.tbss` directly follows `.tdata`: binutils 2.44+ refuses to map a
+`PT_TLS` segment from non-adjacent TLS sections, which libc++/libunwind
+carry. The Circle tree itself is never modified.
+
 ## Keyboard layout
 
-The SD card's `cmdline.txt` carries the keyboard layout, which Circle reads at
-boot. A missing or unrecognised name falls back to German; to match a different keyboard, add `keymap=` to the
-line:
+The SD card's `cmdline.txt` carries the keyboard layout, which Circle reads
+at boot. A missing or unrecognised name falls back to German. To match a
+different keyboard, add `keymap=` to the line:
 
     keymap=UK
 
-Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). Names are case-sensitive; a name in the wrong case matches nothing and the system falls back to German instead.
+Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). Names
+are case-sensitive; a name in the wrong case matches nothing and the system
+falls back to German instead.
 
-**The loaders themselves do not use it.** The menu-loader reads the keyboard as
-raw HID usage codes — the cursor keys, the digits, Enter and the paging keys
-carry the same codes on every layout, so its menu works the same whatever is
-set here. The setting is for the payload that gets booted: anything that reads
-typed characters, rather than named keys, gets them through this layout. On the
-wrong one, the letters and digits are still right and the punctuation is not.
+**The loaders themselves do not use it.** The menu-loader reads the keyboard
+as raw HID usage codes. The cursor keys, the digits, Enter and the paging
+keys carry the same codes on every layout, so its menu works the same
+whatever is set here. The setting is for the payload that gets booted:
+anything that reads typed characters, rather than named keys, gets them
+through this layout. On the wrong one, the letters and digits are still
+right and the punctuation is not.
 
-It is set here rather than by the payload because `cmdline.txt` belongs to the
-card, and one card can boot several payloads.
-
-`mk/ld/circle-tls.ld` is derived from Circle's `circle.ld` and differs only
-in that `.tbss` directly follows `.tdata` — binutils 2.44+ refuses to map a
-`PT_TLS` segment from non-adjacent TLS sections, which libc++/libunwind
-carry. The Circle tree itself is never modified.
+It is set here rather than by the payload because `cmdline.txt` belongs to
+the card, and one card can boot several payloads.
 
 ## Building
 
@@ -232,7 +239,7 @@ carry. The Circle tree itself is never modified.
 - The [Arm GNU `aarch64-none-elf`
   toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
   on your `PATH`.
-- A modern `bash` (5+) and GNU `getopt` on your `PATH` — circle-stdlib's
+- A modern `bash` (5+) and GNU `getopt` on your `PATH`. circle-stdlib's
   `configure` needs `mapfile` and GNU-style option parsing (macOS ships
   bash 3.2 and BSD getopt; `brew install bash gnu-getopt` provides both).
 
@@ -251,19 +258,19 @@ make network-loader-rpi4  # just the Pi 4 chain-loader, in its own build tree
 (each pinned to the project's tested commit), clones the immutable-tagged
 LLVM/libc++ checkout each builds libc++ from, then configures every world
 **single-core** (`-r <board> -p aarch64-none-elf- --libcxx-repo
---kernel-max-size 256`) and builds it.
+--kernel-max-size 255`) and builds it.
 
-`make -j loaders` builds each (loader, board) in its own out-of-tree directory
-`<loader>/build/<board>/` — isolated objects and a distinctly-named image
-(`kernel8.img` / `kernel8-rpi4.img` / `kernel_2712.img`) — so all combos build
-concurrently with zero collision, then collects the images into
-`dist/<loader>/`. Every supported board maps onto one of these worlds
-(Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4, Pi 5 + CM5 → rpi5); the
-board→image routing lives in the card's `config.txt`. This per-board,
-concurrent-tree methodology is the one the pi-mame split reuses to dispatch
-concurrent CI build targets.
+`make -j loaders` builds each (loader, board) in its own out-of-tree
+directory `<loader>/build/<board>/`, with isolated objects and a
+distinctly-named image (`kernel8.img` / `kernel8-rpi4.img` /
+`kernel_2712.img`), so all combos build concurrently with zero collision. It
+then collects the images into `dist/<loader>/`. Every supported board maps
+onto one of these worlds (Zero 2 W + CM3 → rpi3, Pi 4 + CM4 + Pi 400 → rpi4,
+Pi 5 + CM5 → rpi5); the board→image routing lives in the card's
+`config.txt`. This per-board, concurrent-tree methodology is the one the
+pi-mame split reuses to dispatch concurrent CI build targets.
 
 ## Licence
 
-GPLv3 — see `LICENSE`. `mk/ld/circle-tls.ld` is derived from Circle
+GPLv3, see `LICENSE`. `mk/ld/circle-tls.ld` is derived from Circle
 (GPLv3, © R. Stange).

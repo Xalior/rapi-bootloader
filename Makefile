@@ -115,7 +115,7 @@ deps: llvm-cache
 	    ln -sfn $(CIRCLE_LLVM) $$w/libs/llvm-project; \
 	  if [ $$b = rpi5 ]; then o="-o DEPTH=32"; else o=""; fi; \
 	  ( cd $$w && bash ./configure -r $$r -p aarch64-none-elf- \
-	      --libcxx-repo --kernel-max-size 256 $$o && $(MAKE) MAKEINFO=true ); \
+	      --libcxx-repo --kernel-max-size 255 $$o && $(MAKE) MAKEINFO=true ); \
 	done
 
 # Per-(loader, board) build. Runs the loader's own Makefile from an isolated

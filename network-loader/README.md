@@ -1,10 +1,11 @@
 # network-loader
 
-A development chain-loader for bare-metal Raspberry Pi 4 payloads. It brings
-up the network on a static IP, serves TFTP + HTTP + WebDAV, receives a kernel
-image over the wire into a high-heap staging buffer, optionally stamps an argv
+A development chain-loader for bare-metal Raspberry Pi payloads. It brings up
+the network on a static or DHCP-assigned address, serves TFTP + HTTP +
+WebDAV, receives a kernel image over the wire into a high-heap staging
+buffer, optionally stamps an argv
 [defaults-string](../README.md#the-0x800-defaults-block-abi) into it, and
-chain-boots it — iteration without rewriting the SD card: push a new image and
+chain-boots it. Iteration without rewriting the SD card: push a new image and
 it runs from RAM.
 
 The chain-boot carries the device tree over to the image it boots, so a
@@ -12,11 +13,13 @@ chain-booted image has a working network on every board. (Without that, on the
 Raspberry Pi 5 the Ethernet driver has no source for the adapter's hardware
 address and networking does not start.)
 
-Part of [rapi-bootloader](../README.md). Build with `make network-loader` from
-the repo root (after `make deps`); the image is `network-loader/kernel8-rpi4.img`.
-Single-core by design — Circle's `EnableChainBoot()` refuses a multicore
-build, and the Raspberry Pi 5 chain-boot in [`chainboot/`](../chainboot/)
-keeps the same restriction.
+Part of [rapi-bootloader](../README.md). Build with `make network-loader`
+from the repo root (after `make deps`); it builds one image per board into
+`network-loader/build/<board>/` (Circle's own names: `kernel8.img` /
+`kernel8-rpi4.img` / `kernel_2712.img` for RASPPI 3 / 4 / 5). Single-core by
+design: Circle's `EnableChainBoot()` refuses a multicore build, and the
+Raspberry Pi 5 chain-boot in [`chainboot/`](../chainboot/) keeps the same
+restriction.
 
 ## Network
 
@@ -55,7 +58,7 @@ other.
 The loader itself looks up no names, so this setting changes nothing the
 loader does. It is here because the section is one definition of what a card
 says about the network, and the payload the loader chain-boots reads the same
-file — a payload asking a time server for the clock by name is the case that
+file. A payload asking a time server for the clock by name is the case that
 needs it.
 
 If no address is configured and no DHCP server answers, the loader keeps
@@ -66,10 +69,10 @@ address.
 
 Three ports, each a distinct job over the SD card and the chain-boot path.
 
-### TFTP — the chain-boot push
+### TFTP: the chain-boot push
 
 A kernel-image write is accepted **only when the filename matches
-`kernel*.img`** — a `kernel` prefix and a `.img` suffix. Any other name is
+`kernel*.img`**, a `kernel` prefix and a `.img` suffix. Any other name is
 refused at open, before a byte transfers, so a mis-named local copy (say
 `commodore-core.img`) fails fast instead of half-uploading. A received
 `kernel*.img` is staged in the **high heap** (above 1 GB, so a MAME-sized
@@ -80,22 +83,22 @@ be pushed here.
 
 Two reserved TFTP names are not images:
 
-- `inject` — arms the next push's defaults-string: the argv text stamped into
+- `inject` arms the next push's defaults-string: the argv text stamped into
   the image's 0x800 block before it boots (one-shot; disarmed after use).
-- `sd/<path>` — writes a file onto the SD card instead of chain-booting.
+- `sd/<path>` writes a file onto the SD card instead of chain-booting.
 
 Push with any TFTP client, e.g.
 `tftp -m binary 192.168.1.50 -c put kernel8-rpi4.img`, using whatever
 address the loader reported at start-up.
 
-### HTTP — port 8080
+### HTTP: port 8080
 
 A small web UI: choose a `kernel*.img` to upload, optionally type an **ABI
-parameters** string (the argv text stamped into the image's 0x800 block —
-the same injection the TFTP `inject` path performs; leave it blank for a plain
-boot), and press *Boot now!*. Plus a `/reboot` endpoint.
+parameters** string (the argv text stamped into the image's 0x800 block,
+the same injection the TFTP `inject` path performs; leave it blank for a
+plain boot), and press *Boot now!*. Plus a `/reboot` endpoint.
 
-### WebDAV — port 8081 (class 1)
+### WebDAV: port 8081 (class 1)
 
 Read/write access to the whole SD card (the DAV root) from a WebDAV client at
 `http://<loader-address>:8081/`. Implemented methods:
@@ -112,7 +115,7 @@ Read/write access to the whole SD card (the DAV root) from a WebDAV client at
 This is **WebDAV class 1**: it does **not** implement `LOCK`/`UNLOCK` (the
 class-2 locking methods). `OPTIONS` advertises `DAV: 1` so a client's
 capability probe succeeds and it will engage. Command-line and scripted
-clients (`curl`, `cadaver`, davfs2) work fully. GUI file managers that require
-class-2 locking to mount **read-write** — notably macOS Finder — may mount
-read-only or decline the write. Mount from Finder with ⌘K →
+clients (`curl`, `cadaver`, davfs2) work fully. GUI file managers that
+require class-2 locking to mount **read-write**, notably macOS Finder, may
+mount read-only or decline the write. Mount from Finder with ⌘K →
 `http://<loader-address>:8081/`.
