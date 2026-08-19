@@ -1,15 +1,12 @@
 //
 // defaultsblock.h
 //
-// The pi-mame patchable-defaults block: the shared ABI a platform kernel
-// image carries at a fixed offset so any pre-boot writer (build system,
-// chainloader, boot picker) can stamp the machine's argv defaults into the
-// image before it runs. The payload tokenises the text and appends it to
-// argv; MAME's own CLI frontend does all the parsing.
-//
-// PROPOSED ABI — to be ratified at PoC2 review and MATCHED by the future
-// consuming kernel (the reader side is not built yet; this file is the
-// writer's view).
+// The 0x800 defaults-block ABI: a fixed-offset block a platform kernel
+// image carries so any pre-boot writer (build system, chainloader, boot
+// picker) can stamp the machine's argv defaults into the image before it
+// runs. The consuming kernel tokenises the text and appends it to its own
+// argv; this file is the writer's side only. The reader lives in whatever
+// kernel image consumes the block, not in this repository.
 //
 // Layout (little-endian, aarch64 image loads at 0x80000):
 //

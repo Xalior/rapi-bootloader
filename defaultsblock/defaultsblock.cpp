@@ -1,7 +1,7 @@
 //
 // defaultsblock.cpp
 //
-// The writer side of the pi-mame patchable-defaults ABI. See defaultsblock.h
+// The writer side of the 0x800 defaults-block ABI. See defaultsblock.h
 // for the block layout and the seatbelt contract.
 //
 #include "defaultsblock.h"

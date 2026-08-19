@@ -1,11 +1,12 @@
 #
 # rapi-bootloader network-loader — the dev chainloader.
 #
-# Adapted from circle/sample/38-bootloader. Static IP 192.168.42.99
-# (no DHCP on this segment), staging buffer in the high heap so MAME-sized
-# images can't overlap their copy destination. Serves TFTP + HTTP (port
-# 8080) + WebDAV (port 8081). Push a new kernel by TFTP-writing it to the
-# loader's IP with any TFTP client.
+# Adapted from circle/sample/38-bootloader. Takes its address from the SD
+# card's config.txt or, failing that, DHCP; there is no built-in default.
+# Stages a received image in a buffer clear of its own copy destination
+# (the high heap when the board has one with room, else the low heap).
+# Serves TFTP + HTTP (port 8080) + WebDAV (port 8081). Push a new kernel by
+# TFTP-writing it to the loader's IP with any TFTP client.
 #
 # Links a LOCAL single-core circle-stdlib world (rapi-bootloader owns
 # its own checkouts, each configured WITHOUT ARM_ALLOW_MULTI_CORE): the

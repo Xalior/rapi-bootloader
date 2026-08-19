@@ -1,5 +1,5 @@
 /*
- * circle-tls.ld — pi-mame application linker script.
+ * circle-tls.ld — rapi-bootloader application linker script.
  *
  * Derived from Circle's circle.ld (GPLv3, (C) R. Stange); differs in one
  * respect: .tbss directly follows .tdata, because binutils 2.44+ refuses
@@ -68,7 +68,7 @@ SECTIONS
 		__tdata_end = .;
 	}
 
-	/* pi-mame: .tbss must directly follow .tdata — binutils 2.44+ refuses
+	/* .tbss must directly follow .tdata — binutils 2.44+ refuses
 	   to map a PT_TLS segment from non-adjacent TLS sections. */
 	.tbss (NOLOAD) : ALIGN(8) {
 		__tbss_start = .;

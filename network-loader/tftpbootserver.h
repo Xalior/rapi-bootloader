@@ -1,9 +1,9 @@
 //
 // tftpbootserver.h
 //
-// pi-mame chainloader TFTP server, extended from Circle sample 38:
+// network-loader's TFTP server, extended from Circle sample 38:
 //   put inject        -> stashes a defaults-string for the NEXT kernel push
-//   put kernel*.img   -> staged in RAM (high heap), 0x800-patched, chain-booted
+//   put kernel*.img   -> staged in RAM, 0x800-patched, chain-booted
 //   put sd/<path>     -> written to the SD card's FAT filesystem
 //   get sd/<path>     -> read back from the SD card
 //

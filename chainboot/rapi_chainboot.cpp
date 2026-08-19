@@ -87,7 +87,7 @@ static volatile bool s_bLoaderMainReturned = false;
 
 #define RAPI_STUB_MAX_SIZE	0x400
 
-// The device tree the payload will be handed (see header, 4.). Captured when
+// The device tree the payload will be handed, per reason 4 above. Captured
 // the chain-boot is armed, while the heap and the MMU are still normal.
 static const u8 *s_pDTBCopy = 0;
 static size_t s_nDTBSize = 0;
@@ -210,7 +210,7 @@ static void RapiChainBootStub (const void *pKernelImage, size_t nKernelSize) MAX
 static void RapiChainBootStub (const void *pKernelImage, size_t nKernelSize)
 {
 	// Evict the first gigabyte from the system cache BEFORE the copy
-	// (see header, 3.): set/way maintenance does not reach it, so at this
+	// (reason 3 above): set/way maintenance does not reach it, so at this
 	// moment it holds — dirty — everything the loader wrote low, freshly
 	// pushed out of the architected caches by DoChainBoot()'s set/way
 	// clean. The copy below writes DRAM directly, past the system cache;

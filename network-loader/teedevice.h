@@ -4,11 +4,10 @@
 // Write-only fan-out device: every Write() is forwarded to two backing
 // devices. The network-loader points its CLogger here so one logger feeds
 // both the HDMI screen (readable at the glass and via hdmi-grab) and the
-// serial UART (captured remotely by the host serial logger). This is the
-// same serial-diagnostics split the menu-loader and the MAME payload use
-// (m_Logger.Initialize (&m_Serial)), teed so the screen stays populated
-// too — a chainloader-phase panic then lands on serial instead of being
-// visible only on the glass.
+// serial UART (captured remotely by the host serial logger), so a
+// chainloader-phase panic lands on serial instead of being visible only on
+// the glass. The menu-loader logs straight to serial instead, without a
+// tee, so logger lines never corrupt its on-screen menu.
 //
 // GPLv3, consistent with the rest of this loader.
 //

@@ -176,6 +176,13 @@ reasons:
    management unit off, then reads it back with the unit on, so anything
    the loader left behind in that cache reads back stale. Maintenance by
    virtual address does reach it, and that is what the replacement uses.
+4. A chain-booted kernel loses the device tree. Circle reads its address
+   from a fixed slot in low memory that the firmware fills in at power-on,
+   then zeroes that slot once it has read it, so the next kernel finds
+   nothing there. Most payloads never notice, but on the Pi 5 the Ethernet
+   driver has no other source for the adapter's hardware address, so a
+   chain-booted networked kernel comes up with no usable network
+   interface.
 
 `chainboot/rapi_chainboot.cpp` addresses all of them by defining Circle's
 chain-boot functions itself on Pi 5 builds. A library member is only linked

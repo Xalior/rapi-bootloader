@@ -1,5 +1,5 @@
 //
-// webdavserver.cpp — pi-mame chainloader WebDAV server, see webdavserver.h
+// webdavserver.cpp — network-loader's WebDAV server, see webdavserver.h
 // for the protocol and why it doesn't build on CHTTPDaemon.
 //
 #include "webdavserver.h"

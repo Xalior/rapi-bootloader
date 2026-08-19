@@ -1,7 +1,7 @@
 //
 // tftpbootserver.cpp
 //
-// pi-mame chainloader TFTP server — see tftpbootserver.h for the protocol.
+// network-loader's TFTP server — see tftpbootserver.h for the protocol.
 // Based on Circle sample/38-bootloader (GPLv3), R. Stange.
 //
 #include "tftpbootserver.h"
