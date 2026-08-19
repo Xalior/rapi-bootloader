@@ -1,29 +1,30 @@
 # menu-loader
 
-An on-card boot picker for bare-metal Raspberry Pi payloads. Firmware boots
-it from the SD card; it reads a `bootmenu.cfg` list from the card, presents it
-on screen, takes a keyboard selection, stamps the chosen argv
-[defaults-string](../README.md#the-0x800-defaults-block-abi) into a staged
-kernel image, and chain-boots it.
+menu-loader is an on-card boot picker for bare-metal Raspberry Pi payloads.
+Firmware boots it from the SD card. It reads a `bootmenu.cfg` list from the
+card and shows it on screen, takes a keyboard selection, stamps the chosen
+argv [defaults-string](../README.md#the-0x800-defaults-block-abi) into a
+staged kernel image, and chain-boots it.
 
 Part of [rapi-bootloader](../README.md). Build with `make menu-loader` from
-the repo root (after `make deps`); it builds one image per board into
-`menu-loader/build/<board>/` (Circle's own names: `kernel8.img` /
-`kernel8-rpi4.img` / `kernel_2712.img` for RASPPI 3 / 4 / 5). Single-core by
-design: Circle's `EnableChainBoot()` refuses a multicore build, and the
-Raspberry Pi 5 chain-boot in [`chainboot/`](../chainboot/) keeps the same
-restriction.
+the repo root, after `make deps`. It builds one image per board into
+`menu-loader/build/<board>/`, using Circle's own names: `kernel8.img`,
+`kernel8-rpi4.img` and `kernel_2712.img` for RASPPI 3, 4 and 5. The loader
+is single-core by design. Circle's `EnableChainBoot()` refuses a multicore
+build, and the Raspberry Pi 5 chain-boot in
+[`chainboot/`](../chainboot/) keeps the same restriction.
 
 ## On-card files
 
 Both paths are on the SD card the firmware boots this loader from:
 
 - `bootmenu.cfg` is the menu (format below).
-- `kernel-<board>.img` is the single staged kernel image every entry boots
-  (`<board>` is the board tag derived at compile time from RASPPI: `rpi3` /
-  `rpi4` / `rpi5`, so e.g. `kernel-rpi4.img`; it lets one card carry a payload
-  per board). Each menu entry does not carry its own image: they all stamp
-  their chosen defaults-string into this one staged image.
+- `kernel-<board>.img` is the single staged kernel image every entry boots.
+  `<board>` is the board tag derived at compile time from RASPPI (`rpi3`,
+  `rpi4` or `rpi5`), so on a Pi 4 build the file is `kernel-rpi4.img`. This
+  lets one card carry a payload per board. No menu entry carries its own
+  image; each one stamps its chosen defaults-string into this same staged
+  image.
 
 ## bootmenu.cfg
 
@@ -36,18 +37,21 @@ Second entry (opts)   | string-two --flag ""
 Third entry           | string-three
 ```
 
-- Split on the **first** `|`; a line without one is ignored (logged).
-- The label (before the `|`) is shown in the menu; the string (after it) is
+- The loader splits each line on the first `|`. A line without one is
+  ignored, and logged.
+- The label, before the `|`, is shown in the menu. The string, after it, is
   the argv text stamped into the staged image's 0x800 block for that entry.
-  An image that carries no 0x800 block boots unstamped rather than being
-  refused, exactly as on the network-loader: both use the same writer.
-- Whitespace around the `|` is trimmed, as is a trailing CR (CRLF files are
-  fine).
-- Limits: up to **64** entries, label ≤ 96 bytes, string ≤ 1024 bytes;
-  anything beyond is truncated or ignored (logged).
+  The loader boots an image carrying no 0x800 block unstamped rather than
+  refusing it, exactly as network-loader does, because both use the same
+  writer.
+- The loader trims whitespace around the `|`, and a trailing CR, so CRLF
+  files work fine.
+- Limits: up to 64 entries, label ≤ 96 bytes, string ≤ 1024 bytes; anything
+  beyond is truncated or ignored (logged).
 
-A single-entry `bootmenu.cfg` boots that entry: the picker is then just a
-fixed, unattended chain-boot of one baked entry.
+A single-entry `bootmenu.cfg` boots that one entry. With no second choice
+on offer, the picker becomes a fixed, unattended chain-boot of one baked
+entry.
 
 ## Keys
 
@@ -77,8 +81,8 @@ the menu may want one:
     keymap=UK
 
 Valid values are `US`, `UK`, `DE`, `ES`, `FR`, `IT` and `DV` (Dvorak). A
-missing or unrecognised name falls back to German. Names are case-sensitive;
-a name in the wrong case matches nothing and the system falls back to German
-instead. It matters to anything that reads typed characters rather than
-named keys; on the wrong layout the letters and digits are still right and
-the punctuation is not.
+missing or unrecognised name falls back to German. Names are case-sensitive.
+A name in the wrong case matches nothing, and the system falls back to
+German instead. It matters to anything that reads typed characters rather
+than named keys. On the wrong layout the letters and digits are still
+right, and the punctuation is not.
